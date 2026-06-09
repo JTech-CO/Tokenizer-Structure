@@ -1,0 +1,102 @@
+/* analysis.css — footer 분석 패널: 토큰 효율 · 히트맵 범례 · 비용 · 컨텍스트 게이지 */
+
+/* 효율 지표 행 */
+.eff-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: 0.78rem;
+    font-weight: 700;
+    padding: 0.12rem 0;
+    border-bottom: 1px dotted #cccccc;
+}
+.eff-row span:first-child {
+    opacity: 0.7;
+}
+.eff-dim {
+    font-weight: 400;
+    opacity: 0.55;
+    font-size: 0.7rem;
+}
+
+/* 히트맵 범례 */
+.heat-legend {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-top: 0.5rem;
+    font-size: 0.65rem;
+    font-weight: 700;
+    opacity: 0.85;
+}
+.heat-bar {
+    flex: 1;
+    height: 0.6rem;
+    border: 1px solid #000000;
+    background: linear-gradient(90deg, hsl(0, 70%, 78%), hsl(32, 70%, 78%), hsl(65, 70%, 78%), hsl(130, 70%, 78%));
+}
+
+/* 비용 환산 행 */
+.cost-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: 0.78rem;
+    font-weight: 700;
+    padding: 0.1rem 0;
+}
+.cost-row span:first-child {
+    opacity: 0.7;
+}
+.cost-hr {
+    border: none;
+    border-top: 2px solid #000000;
+    margin: 0.4rem 0;
+}
+.cost-main {
+    font-size: 0.85rem;
+}
+.cost-main b {
+    font-size: 0.95rem;
+}
+.cost-sub {
+    font-size: 0.68rem;
+    font-weight: 700;
+    opacity: 0.65;
+    margin-top: 0.15rem;
+}
+.cost-note {
+    font-size: 0.62rem;
+    font-weight: 700;
+    opacity: 0.6;
+    margin-top: 0.3rem;
+}
+
+/* 컨텍스트 윈도우 게이지 */
+.ctx-gauge {
+    margin-top: 0.6rem;
+}
+.ctx-head {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.7rem;
+    font-weight: 700;
+    opacity: 0.8;
+}
+.ctx-bar {
+    height: 0.7rem;
+    border: 2px solid #000000;
+    margin-top: 0.2rem;
+    background-color: #ffffff;
+}
+.ctx-fill {
+    height: 100%;
+    background-color: #000000;
+}
+.ctx-pct {
+    font-size: 0.65rem;
+    font-weight: 700;
+    opacity: 0.6;
+    text-align: right;
+    margin-top: 0.1rem;
+}

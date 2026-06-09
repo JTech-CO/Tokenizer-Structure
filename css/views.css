@@ -1,0 +1,119 @@
+/* views.css — 비교/매트릭스/모달 뷰 + 단계 애니메이션 + token↔원문 매핑 */
+
+/* 언어 효율 매트릭스 표 */
+.matrix-table {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 0.8rem;
+    font-weight: 700;
+}
+.matrix-table th,
+.matrix-table td {
+    border: 1px solid #000000;
+    padding: 0.45rem 0.7rem;
+    text-align: center;
+    white-space: nowrap;
+}
+.matrix-table thead th {
+    background-color: #000000;
+    color: #ffffff;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+}
+.matrix-table tbody th {
+    text-align: left;
+    background-color: #f5f5f5;
+    position: sticky;
+    left: 0;
+    z-index: 1;
+}
+.matrix-cell {
+    font-variant-numeric: tabular-nums;
+}
+
+/* 모달 (전 모델 비용표) */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    z-index: 50;
+    display: none;
+}
+.modal-overlay.is-open {
+    display: flex;
+}
+.modal-box {
+    background-color: #ffffff;
+    border: 2px solid #000000;
+    width: min(920px, 95vw);
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+.modal-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    border-bottom: 2px solid #000000;
+}
+.modal-head h2 {
+    font-size: 1rem;
+    font-weight: 700;
+}
+.modal-sub {
+    padding: 0.4rem 1rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+    opacity: 0.7;
+    border-bottom: 1px solid #cccccc;
+}
+.modal-body {
+    overflow: auto;
+    flex: 1;
+}
+.ct-name {
+    text-align: left;
+}
+.ct-sort {
+    cursor: pointer;
+    user-select: none;
+}
+.ct-sort:hover {
+    background-color: #333333;
+}
+
+/* 단계 순차 애니메이션 */
+@keyframes stageIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: none; }
+}
+main.anim > .step-card {
+    opacity: 0;
+    animation: stageIn 0.45s ease forwards;
+}
+main.anim > .step-card:nth-child(1) { animation-delay: 0.05s; }
+main.anim > .step-card:nth-child(2) { animation-delay: 0.40s; }
+main.anim > .step-card:nth-child(3) { animation-delay: 0.75s; }
+main.anim > .step-card:nth-child(4) { animation-delay: 1.10s; }
+
+/* token↔원문 hover 매핑 */
+.map-text {
+    line-height: 2;
+    word-break: break-all;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+.map-tok {
+    padding: 1px 0;
+    cursor: pointer;
+}
+.tok-hl {
+    background-color: #fde047 !important;
+    outline: 2px solid #000000;
+    outline-offset: -1px;
+}

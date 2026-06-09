@@ -1,0 +1,135 @@
+/* controls.css — 헤더/입력 컨트롤: 드롭다운 · 엔진 상태 · 토글 · 뷰 탭 · 버튼 */
+
+/* 모델 선택 드롭다운 */
+.model-select {
+    font-size: 0.8rem;
+    font-weight: 700;
+    padding: 0.35rem 0.5rem;
+    border: 2px solid #000000;
+    background-color: #ffffff;
+    color: #000000;
+    cursor: pointer;
+    outline: none;
+}
+
+/* 엔진 상태 배지 */
+.engine-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 0.3rem 0.55rem;
+    border: 2px solid #000000;
+    white-space: nowrap;
+    background-color: #ffffff;
+}
+.engine-status::before {
+    content: '';
+    width: 0.5rem;
+    height: 0.5rem;
+    border: 1px solid #000000;
+    background-color: currentColor;
+}
+.engine-status.is-loading {
+    background-color: #fef08a; /* 노랑 */
+    animation: status-pulse 1s ease-in-out infinite;
+}
+.engine-status.is-real {
+    background-color: #bbf7d0; /* 초록 */
+}
+.engine-status.is-fallback {
+    background-color: #fecaca; /* 빨강 */
+}
+@keyframes status-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.45; }
+}
+
+/* 히트맵 / 애니메이션 토글 */
+.heatmap-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 0.3rem 0.5rem;
+    border: 2px solid #000000;
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+}
+.heatmap-toggle input {
+    accent-color: #000000;
+    cursor: pointer;
+}
+
+/* 비용 모델 드롭다운 */
+.cost-select {
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 0.2rem 0.3rem;
+    border: 2px solid #000000;
+    background-color: #ffffff;
+    color: #000000;
+    cursor: pointer;
+    outline: none;
+    max-width: 11rem;
+}
+
+/* 뷰 전환 탭 / 비용표 버튼 */
+.view-tab {
+    font-size: 0.8rem;
+    font-weight: 700;
+    padding: 0.3rem 0.7rem;
+    border: 2px solid #000000;
+    background-color: #ffffff;
+    color: #000000;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background-color 0.1s ease, color 0.1s ease;
+}
+.view-tab:hover {
+    background-color: #f0f0f0;
+}
+.view-tab.is-active {
+    background-color: #000000;
+    color: #ffffff;
+}
+
+/* 입력 프리셋 버튼 */
+.preset-btn {
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 0.2rem 0.55rem;
+    border: 2px solid #000000;
+    background-color: #ffffff;
+    color: #000000;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background-color 0.1s ease, color 0.1s ease;
+}
+.preset-btn:hover {
+    background-color: #000000;
+    color: #ffffff;
+}
+
+/* 비용표 정렬 버튼 */
+.sort-btn {
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 0.25rem 0.55rem;
+    border: 2px solid #000000;
+    background-color: #ffffff;
+    color: #000000;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background-color 0.1s ease, color 0.1s ease;
+}
+.sort-btn:hover {
+    background-color: #f0f0f0;
+}
+.sort-btn.is-active {
+    background-color: #000000;
+    color: #ffffff;
+}
