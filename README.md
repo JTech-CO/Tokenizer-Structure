@@ -16,9 +16,9 @@
 
 **주요 기능**
 - **4단계 파이프라인 시각화**: 정규화·사전토큰화·서브워드(BPE/WordPiece)·후처리를 토큰 배지로 표시, 단계 순차 애니메이션 지원
-- **실제 6개 토크나이저**: GPT-4o(o200k)·Qwen3·Llama 3.2·Gemma 3·DeepSeek-V3·BERT — byte-level 토큰을 실제 글자로 디코딩, 로드 실패 시 휴리스틱 폴백
+- **실제 6개 토크나이저**: GPT-4o·GPT-5.6(o200k)·Qwen3.5·Llama 4·Gemma 3·DeepSeek-V3·BERT — byte-level 토큰을 실제 글자로 디코딩, 로드 실패 시 휴리스틱 폴백
 - **분석 지표**: 토큰 효율(압축률·바이트당), 컨텍스트 윈도우 게이지, 토큰당 글자수 히트맵
-- **모델 2열 비교 · 언어 효율 매트릭스 · 전 모델 API 비용 일괄표**(3사 22개 모델, 제공사 색·정렬)
+- **모델 2열 비교 · 언어 효율 매트릭스 · 전 모델 API 비용 일괄표**(3사 27개 모델, 제공사 색·정렬)
 - **token↔원문 hover 매핑**, 입력 프리셋, 한/영 다국어 토글
 
 ## 2. 기술 스택 (Tech Stack)
@@ -26,7 +26,7 @@
 - **Frontend**: Vanilla JavaScript (ES Modules), HTML5
 - **Styling**: Tailwind CSS (CDN) + 커스텀 CSS (역할별 분할)
 - **Tokenizer Engine**: Transformers.js v3.8.1 (`@huggingface/transformers`, 브라우저 WASM)
-- **Data**: 정적 JS 모듈 — 토크나이저 모델 카탈로그 / LLM API 가격(기준 2026-06-08)
+- **Data**: 정적 JS 모듈 — 토크나이저 모델 카탈로그 / LLM API 가격(기준 2026-07-23)
 - **Deployment**: GitHub Pages (정적 호스팅, 빌드 불필요)
 
 ## 3. 설치 및 실행 (Quick Start)

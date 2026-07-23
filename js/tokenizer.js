@@ -7,14 +7,17 @@ env.allowLocalModels = false;
 env.useBrowserCache = true;
 
 // 모델 카탈로그 — 드롭다운에 노출
-// in-browser 로드 검증(HF Hub file-list 확인, ungated, tokenizer.json 보유, 2026-06 기준).
-// 공식 meta-llama/* · google/gemma* 는 gated라 익명 브라우저 fetch 시 401 → onnx-community/* 미러 사용.
-// 토크나이저는 모델보다 느리게 바뀜: o200k_base 는 GPT-4o/o1/o3/GPT-5 가 공유.
+// in-browser 로드 검증(HF Hub file-list 확인, ungated, tokenizer.json 보유, 2026-07 기준).
+// 공식 meta-llama/* · google/gemma* 는 gated라 익명 브라우저 fetch 시 401 → onnx-community/*(또는 Xenova/*) 미러 사용.
+// Qwen3.5: tokenizer_config가 v4형 'TokenizersBackend'를 선언하나 v3.8.1이 base 클래스로 폴백 → 정상 로드+4단계 동작(Node/브라우저 검증, 2026-07).
+// Llama 4: gated meta-llama/* 대신 Xenova/llama4-tokenizer(토크나이저 전용, ungated) 사용.
+// 토크나이저는 모델보다 느리게 바뀜: o200k_base 는 GPT-4o/o1/o3/GPT-5/GPT-5.6(Sol·Terra·Luna) 가 공유 → 별도 엔진 불필요.
+// Gemma 4·DeepSeek-V4 는 기존 3/V3 과 서브워드 vocab·merges 동일(특수토큰만 추가) → 갱신 불필요, 3/V3 항목 유지.
 // context: 해당 토크나이저가 속한 모델 계열의 대표 컨텍스트 윈도우(토큰). 게이지 표시용 근사값.
 export const MODELS = [
-    { id: 'Xenova/gpt-4o',                        label: 'GPT-4o · GPT-5 (o200k)', family: 'BPE · byte-level', context: 128000 },
-    { id: 'onnx-community/Qwen3-0.6B-ONNX',        label: 'Qwen3',                  family: 'BPE · byte-level', context: 32768 },
-    { id: 'onnx-community/Llama-3.2-1B-Instruct',  label: 'Llama 3.2',              family: 'BPE · byte-level', context: 131072 },
+    { id: 'Xenova/gpt-4o',                        label: 'GPT-4o · GPT-5.6 (o200k)', family: 'BPE · byte-level', context: 128000 },
+    { id: 'onnx-community/Qwen3.5-0.8B-ONNX',      label: 'Qwen3.5',                family: 'BPE · byte-level', context: 262144 },
+    { id: 'Xenova/llama4-tokenizer',              label: 'Llama 4',                family: 'BPE · byte-level', context: 10000000 },
     { id: 'onnx-community/gemma-3-1b-it-ONNX',     label: 'Gemma 3',                family: 'SentencePiece',    context: 131072 },
     { id: 'deepseek-ai/DeepSeek-V3',              label: 'DeepSeek-V3',            family: 'BPE · byte-level', context: 131072 },
     { id: 'Xenova/bert-base-multilingual-cased',  label: 'BERT multilingual',      family: 'WordPiece',        context: 512 },
