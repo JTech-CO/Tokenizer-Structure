@@ -4,10 +4,11 @@
 //  1. app shell(HTML/CSS/JS/vendor)만 담는다. artifact 파일은 담지 않는다.
 //     artifact는 Transformers.js가 소유한 'transformers-cache'가 관리하므로
 //     이 worker가 건드리면 같은 파일을 두 벌 갖게 된다.
-//  2. HTML은 network-first다. 온라인이면 항상 최신 배포가 이긴다.
-//  3. 나머지 동일 출처 자산은 stale-while-revalidate로 즉시 응답하고 뒤에서 갱신한다.
-//  4. 교차 출처 요청(huggingface.co 포함)은 respondWith 자체를 하지 않는다.
-//  5. 200이 아니거나 HTML로 돌아온 자산 응답은 cache에 기록하지 않는다.
+//  2. HTML과 자산 모두 network-first다. 온라인이면 항상 최신 배포가 이긴다.
+//     자산을 stale-while-revalidate로 두면 새 HTML과 이전 모듈이 한 번 섞여
+//     새 화면이 빈 채로 뜬다(실제로 배포 직후 관찰됨). cache는 offline 대비다.
+//  3. 교차 출처 요청(huggingface.co 포함)은 respondWith 자체를 하지 않는다.
+//  4. 200이 아니거나 HTML로 돌아온 자산 응답은 cache에 기록하지 않는다.
 //
 // APP_SHELL 목록은 tests/serviceWorker.test.js가 실제 파일 목록과 대조한다.
 
@@ -126,19 +127,17 @@ async function networkFirst(request) {
     }
 }
 
-async function staleWhileRevalidate(request) {
+async function assetNetworkFirst(request) {
     const cache = await caches.open(SHELL_CACHE);
-    const cached = await cache.match(request);
-    const network = fetch(request)
-        .then(async (response) => {
-            if (isCacheableAssetResponse(response)) await cache.put(request, response.clone());
-            return response;
-        })
-        .catch(() => null);
-    if (cached) return cached;
-    const response = await network;
-    if (response) return response;
-    throw new Error('offline and not cached');
+    try {
+        const response = await fetch(request);
+        if (isCacheableAssetResponse(response)) await cache.put(request, response.clone());
+        return response;
+    } catch (error) {
+        const cached = await cache.match(request);
+        if (cached) return cached;
+        throw error;
+    }
 }
 
 self.addEventListener('fetch', (event) => {
@@ -154,6 +153,6 @@ self.addEventListener('fetch', (event) => {
         return;
     }
     if (ASSET_PATTERN.test(url.pathname)) {
-        event.respondWith(staleWhileRevalidate(request));
+        event.respondWith(assetNetworkFirst(request));
     }
 });

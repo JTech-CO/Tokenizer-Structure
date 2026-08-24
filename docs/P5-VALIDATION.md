@@ -131,8 +131,8 @@ merge를 늘려도 조각 수는 **줄어들기만 하고 늘지 않으며**, �
 
 ```text
 npm test
-tests 249
-pass 249
+tests 250
+pass 250
 fail 0
 ```
 
@@ -168,7 +168,17 @@ axe-core 4.10.3 기준 **violations 0건**입니다.
 
 **Learn 경로 추가**(BPE 학습을 다루는 4번째 5분 경로)는 하지 않았습니다. lesson 데이터는 `sourceUrl`과 `reviewedAt`을 요구하고 4문항 오답 선택지까지 설계해야 합니다. Builder 자체가 단계별 설명을 담고 있으므로, 정식 lesson 추가는 근거 문헌을 정리한 뒤로 미룹니다.
 
-## 10. 남은 게이트
+## 10. 배포 중 발견해 고친 것
+
+P5를 배포한 직후 GitHub Pages에서 **9개 탭은 보이는데 Builder 화면이 비어 있는** 상태를 관찰했습니다.
+
+원인은 Service Worker의 캐시 전략이었습니다. HTML은 network-first라 새 배포가 즉시 반영되지만, 자산은 stale-while-revalidate여서 첫 로드에 **이전 `main.js`** 가 응답했습니다. 새 HTML(9개 탭)과 이전 모듈(Builder를 import하지 않음)이 한 번 섞인 것입니다. 두 번째 새로고침에서는 정상이었지만, 배포 직후 방문자는 깨진 중간 상태를 한 번 보게 됩니다.
+
+자산도 network-first로 바꿨습니다. cache는 offline 대비로만 쓰고, 온라인이면 HTML과 모듈이 항상 같은 배포에서 옵니다. offline 능력은 그대로입니다(네트워크 실패 시 cache로 폴백). 이 앱의 지배적 비용은 app shell이 아니라 artifact 다운로드이므로 잃는 속도는 크지 않습니다.
+
+회귀를 막기 위해 Service Worker 테스트를 바꿨습니다. "캐시가 먼저 답하고 뒤에서 갱신한다"를 검증하던 테스트를 "새 배포가 올라오면 첫 요청부터 새 모듈을 받는다 + offline이면 cache가 답한다"로 교체했습니다.
+
+## 11. 남은 게이트
 
 - Unigram replay(별도 연구)
 - BPE 학습을 다루는 5분 Learn 경로
@@ -176,7 +186,7 @@ axe-core 4.10.3 기준 **violations 0건**입니다.
 - P2의 선택적 공식 계수 gateway
 - P4의 public exact-SHA artifact 추가 경로
 
-## 11. 재검증 명령
+## 12. 재검증 명령
 
 ```bash
 npm test

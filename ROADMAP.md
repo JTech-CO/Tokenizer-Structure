@@ -36,7 +36,7 @@
 - cache manifest v1과 런타임 artifact cache 채택, app-shell Service Worker, 명시적 offline pin
 - 세션 한정 custom artifact 업로드와 remote-code 차단, 운영 화면
 - 결정론적 소형 BPE 학습·merge replay와 확장 기여 가이드
-- 249개 결정론적 회귀 테스트
+- 250개 결정론적 회귀 테스트
 
 핵심 공백:
 

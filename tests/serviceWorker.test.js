@@ -185,18 +185,32 @@ test('an HTML error page is never cached as a JavaScript asset', async () => {
     assert.equal(await cache.match(request.url), null, 'an HTML fallback must not enter the shell cache');
 });
 
-test('cached assets answer immediately and refresh in the background', async () => {
+test('assets follow the network too, so HTML and modules never mix versions', async () => {
     let body = 'v1';
-    const worker = loadWorker({ fetchImpl: async (url) => okResponse(url, { body }) });
+    let online = true;
+    const worker = loadWorker({
+        fetchImpl: async (url) => {
+            if (!online) throw new Error('offline');
+            return okResponse(url, { body });
+        },
+    });
     await worker.dispatch('install', {});
 
     const request = { method: 'GET', url: `${SCOPE}js/main.js`, mode: 'cors' };
     body = 'v2';
-    const first = await worker.dispatch('fetch', { request });
-    assert.equal(await (await first).text(), 'v1', 'the cached copy answers first');
+    // 새 배포가 올라오면 첫 요청부터 새 모듈을 받아야 한다.
+    // 이전 stale-while-revalidate에서는 새 HTML과 이전 모듈이 한 번 섞여
+    // 새 화면이 빈 채로 떴다.
+    const fresh = await worker.dispatch('fetch', { request });
+    assert.equal(await (await fresh).text(), 'v2', 'an online asset request must use the network');
 
-    // 백그라운드 갱신이 끝나면 다음 요청은 새 내용을 받는다.
-    await new Promise((done) => setTimeout(done, 0));
-    const second = await worker.dispatch('fetch', { request });
-    assert.equal(await (await second).text(), 'v2');
+    online = false;
+    const offline = await worker.dispatch('fetch', { request });
+    assert.equal(await (await offline).text(), 'v2', 'the cache still answers when offline');
+});
+
+test('an asset that is neither reachable nor cached fails instead of hanging', async () => {
+    const worker = loadWorker({ fetchImpl: async () => { throw new Error('offline'); } });
+    const request = { method: 'GET', url: `${SCOPE}js/never-seen.js`, mode: 'cors' };
+    await assert.rejects(async () => (await worker.dispatch('fetch', { request })), /offline/);
 });

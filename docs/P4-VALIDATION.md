@@ -92,7 +92,7 @@ cache에서 파일 하나를 지운 뒤 `확인`을 누르면 상태가 `pin됨`
 `sw.js`는 app shell만 담습니다.
 
 - **HTML은 network-first**입니다. 온라인이면 항상 최신 배포가 이기므로 배포가 막히지 않습니다.
-- 나머지 동일 출처 `.js`/`.css`/`.json`은 stale-while-revalidate입니다.
+- 나머지 동일 출처 `.js`/`.css`/`.json`도 network-first이고 cache는 offline 대비입니다. 처음에는 stale-while-revalidate였으나, 배포 직후 새 HTML과 이전 모듈이 한 번 섞여 새 화면이 빈 채로 뜨는 것을 실제로 관찰해 바꿨습니다(P5-VALIDATION 참고).
 - **교차 출처 요청은 `respondWith` 자체를 호출하지 않습니다.** artifact 요청은 worker를 그대로 통과합니다.
 - `activate`는 `tokenizer-app-shell-` 접두사의 구버전만 지우고 `transformers-cache`는 건드리지 않습니다.
 - `install`은 `cache.addAll`로 원자적으로 받습니다. 하나라도 실패하면 설치를 포기해 반쪽짜리 shell이 남지 않습니다.
@@ -110,7 +110,7 @@ state        active
 caches       ["transformers-cache", "tokenizer-app-shell-v1"]
 ```
 
-배포 갱신 흐름도 실제로 확인했습니다. `operateView.js`를 수정한 뒤 첫 새로고침에서 cache가 새 내용으로 갱신되고, 두 번째 새로고침에서 새 동작이 화면에 반영되었습니다. 이는 stale-while-revalidate의 의도된 동작입니다.
+배포 갱신 흐름도 실제로 확인했습니다. 초기 stale-while-revalidate에서는 `operateView.js` 수정 후 첫 새로고침에서 cache만 갱신되고 두 번째 새로고침에서 화면에 반영되었습니다. P5에서 자산도 network-first로 바꾼 뒤에는 첫 새로고침에 바로 반영됩니다.
 
 ## 6. custom artifact (세션 한정)
 
@@ -168,7 +168,7 @@ P4에서 추가한 범위:
 - quota: pin 개수 상한, 앱 예산, 브라우저 quota 초과/부족, quota 미보고 시 추정 금지
 - migration: 알 수 없거나 더 새로운 schema version은 읽지 않고 초기화
 - pin 흐름: 완전 성공, 중간 실패 시 조각 삭제, 검증 실패 시 등급 하향, 삭제, 런타임 캐시와 pin 구분
-- Service Worker 실행: install 원자성, activate가 artifact cache 보존, 교차 출처 미개입, HTML network-first와 offline fallback, HTML 오류 페이지 미기록, stale-while-revalidate 갱신
+- Service Worker 실행: install 원자성, activate가 artifact cache 보존, 교차 출처 미개입, HTML network-first와 offline fallback, HTML 오류 페이지 미기록, 자산 network-first와 offline fallback(P5에서 갱신)
 - custom artifact: 파일·크기·중복, remote code(raw/parsed/클래스 경로), component 화이트리스트, 깊이·노드 상한, vocab·added_tokens 상한, 지문 안정성, smoke 실패 판정, 서술자가 revision·라이선스를 지어내지 않음
 - 정적: 운영 탭 마크업, main landmark 포함, pin 파일 목록이 런타임 요청과 일치, 순수 모듈의 DOM·네트워크·`eval` 부재
 

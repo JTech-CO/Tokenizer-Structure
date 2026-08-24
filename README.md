@@ -82,7 +82,7 @@
 - artifact 파일은 Transformers.js가 이미 소유한 cache를 그대로 쓰고, 이 앱은 manifest만 따로 관리 (같은 파일을 두 벌 갖지 않음)
 - 401·404·HTML fallback·opaque·부분 응답을 사유별로 거부하고, 실패 시 받은 조각을 삭제
 - `pin됨` / `런타임 캐시됨(pin 아님)` / `일부만 캐시됨` / `캐시 없음`을 구분해 offline 표시를 실제와 일치시킴
-- HTML은 network-first, 자산은 stale-while-revalidate인 app shell Service Worker (artifact 요청은 통과)
+- HTML과 자산 모두 network-first이고 cache는 offline 대비인 app shell Service Worker (artifact 요청은 통과)
 - remote code(`auto_map`·`trust_remote_code`·모듈 경로 클래스)를 차단하고 component 화이트리스트·크기·깊이 상한을 지키는 세션 한정 custom artifact 업로드
 - 저장소·pin·custom artifact·데이터 신선도를 보는 운영 화면
 - Node 결정론적 회귀 테스트 229개, 8개 view × ko/en × 1280×720·320px axe 접근성 0 violations
@@ -97,7 +97,7 @@
 - 같은 말뭉치는 항상 같은 merge 순서(동점은 사전순 확정) — 단어 순서를 바꿔도 결과 동일
 - 상한(말뭉치 5,000 code points·단어 400종·merge 200회)을 넘으면 자르지 않고 사유와 함께 거부
 - 실행 전 규모 미리보기와 실행 후 실측 시간을 함께 표시하며 "실시간 학습"으로 약속하지 않음
-- Node 결정론적 회귀 테스트 249개, 9개 view × ko/en × 1280×800·320px axe 접근성 0 violations
+- Node 결정론적 회귀 테스트 250개, 9개 view × ko/en × 1280×800·320px axe 접근성 0 violations
 
 측정값은 [P5 검증 기록](docs/P5-VALIDATION.md), lesson·artifact·adapter 추가 방법은 [확장 가이드](docs/EXTENDING.md)에 있습니다.
 
@@ -145,7 +145,7 @@
    npm test
    ```
 
-   외부 패키지 설치 없이 Node.js 기본 test runner로 249개 테스트를 실행합니다.
+   외부 패키지 설치 없이 Node.js 기본 test runner로 250개 테스트를 실행합니다.
 
 GitHub Pages는 저장소를 `main` / `(root)`로 지정하면 `https://<user>.github.io/<repo>/`에서 build 없이 동작합니다.
 
