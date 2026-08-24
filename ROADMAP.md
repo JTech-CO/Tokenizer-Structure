@@ -1,6 +1,6 @@
 # Tokenizer Structure 확장 기획 및 우선순위
 
-> 이 문서는 2026-08-25 기준 **P0~P3 구현 상태와 P4 이후의 추가·확장·구축 후보, 의존관계, 우선순위**를 함께 관리합니다. 검증 근거는 `docs/P0-VALIDATION.md`, `docs/P1-VALIDATION.md`, `docs/P1-USABILITY-PROTOCOL.md`, `docs/P2-VALIDATION.md`, `docs/P3-VALIDATION.md`에 기록합니다.
+> 이 문서는 2026-08-25 기준 **P0~P4 구현 상태와 P5 이후의 추가·확장·구축 후보, 의존관계, 우선순위**를 함께 관리합니다. 검증 근거는 `docs/P0-VALIDATION.md`, `docs/P1-VALIDATION.md`, `docs/P1-USABILITY-PROTOCOL.md`, `docs/P2-VALIDATION.md`, `docs/P3-VALIDATION.md`, `docs/P4-VALIDATION.md`에 기록합니다.
 
 ## 1. 한 줄 제품 방향
 
@@ -33,14 +33,16 @@
 - RequestSpec/RequestAnalysisResult v1, chat template 능력 런타임 판정, 정확 합산 세그먼트
 - 컨텍스트 예산·고정 prefix 분리·turn 재입력, 조건 기반 비용 시나리오와 수명주기 경고
 - Corpus v1·BenchmarkResult v1, 부분 실패 격리, 역순 응답 보호, 발표 모드와 수업 링크
-- 181개 결정론적 회귀 테스트
+- cache manifest v1과 런타임 artifact cache 채택, app-shell Service Worker, 명시적 offline pin
+- 세션 한정 custom artifact 업로드와 remote-code 차단, 운영 화면
+- 229개 결정론적 회귀 테스트
 
 핵심 공백:
 
 - v3 공개 JS 계약에서 exact original/normalized offset, sequence ID, word ID가 unavailable이며 Inspector는 이를 추정하지 않고 표시함
 - 세 개의 Learn 경로는 구현됐지만 목표 사용자 80% 사용성 기준을 실제 표본으로 검증하지 않음 (프로토콜만 확정)
 - Worker 기반은 실행 가능하지만 기존 pipeline UI 전체의 비동기 controller 이전과 성능 budget은 남음
-- cache/offline의 영속 저장 소유권 정책과 관리 UI가 없고 Firefox/WebKit 검증이 남음 (axe 자동 검증은 Chromium 기준 완료)
+- Firefox/WebKit 검증이 남음 (axe 자동 검증은 Chromium 기준 완료)
 - 공식 계수 gateway가 없어 provider preflight·actual usage 자리는 값 없이 표시만 되고, cached/batch/priority 단가와 tool 과금 데이터가 카탈로그에 없음
 
 ## 3. 대상 사용자와 제품 모드
@@ -141,6 +143,8 @@ Cache 소유권은 중복 저장을 피하도록 분리합니다.
 - Service Worker: 우선 app shell만
 - artifact offline: 사용자가 명시적으로 pin한 항목만
 
+2026-08-25 구현 결과: artifact 파일은 Transformers.js가 이미 소유한 `transformers-cache`를 그대로 씁니다. 별도 cache를 만들면 같은 파일을 두 벌 갖게 되기 때문입니다. 이 앱은 manifest(무엇을 언제 왜 고정했는지)만 IndexedDB에 따로 관리합니다.
+
 ## 7. 우선순위 결정 방식
 
 정밀한 숫자 점수보다 다음 네 축과 의존관계를 사용합니다.
@@ -167,12 +171,12 @@ P0는 점수와 무관한 필수 게이트입니다. P1 이후는 사용자 가�
 | P2 | 선택적 공식 계수 gateway | 높음 | 큼 | 매우 높음 | ⏳ 미착수 — 계약·화면 자리만 확보, 서버 프록시 또는 로컬 adapter 선행 필요 |
 | P3 | 2~4 artifact 말뭉치 Benchmark | 높음 | 큼 | 중상 | ✅ 완료 — 부분 실패 격리와 비교 가능 부분집합 분리 검증 |
 | P3 | 발표 모드·재현 가능한 수업 링크 | 중 | 중 | 낮음 | ✅ 완료 — 단계별 reveal·발표자 메모·원문 미포함 링크 |
-| P4 | cache 관리·app-shell offline·선택 pin | 중상 | 큼 | 높음 | 운영성 향상, 초기 핵심 가치 뒤에 배치 |
-| P4 | 로컬 custom artifact → public exact-SHA | 높음 | 매우 큼 | 매우 높음 | 보안·라이선스·호환성 게이트 필요 |
-| P4 | embeddable core·CLI·adapter SDK | 중상 | 매우 큼 | 높음 | 재사용 플랫폼으로 확장 |
+| P4 | cache 관리·app-shell offline·선택 pin | 중상 | 큼 | 높음 | ✅ 완료 — 런타임 cache 채택으로 중복 소유 제거, offline 실증 |
+| P4 | 로컬 custom artifact → public exact-SHA | 높음 | 매우 큼 | 매우 높음 | ✅ 로컬 업로드 완료 — public exact-SHA 추가 경로는 남음 |
+| P4 | embeddable core·CLI·adapter SDK | 중상 | 매우 큼 | 높음 | ✅ 검토 완료 — [ADR 0002](docs/adr/0002-embeddable-core-cli-and-adapter-sdk.md), 지금은 경계만 유지 |
 | P5 | 소형 BPE/Unigram Builder·학습 애니메이션 | 중 | 매우 큼 | 중상 | 핵심 분석 제품이 안정된 뒤 연구·교육 확장 |
 
-핵심 순서는 **P0 신뢰 기반 → P1 Inspector/Learn → P2 Request Token Lab → P3 Benchmark → P4 Platform → P5 Builder**입니다. 2026-08-25 기준 P3까지 완료했고 다음 구현 대상은 P4 Platform & Extensibility입니다.
+핵심 순서는 **P0 신뢰 기반 → P1 Inspector/Learn → P2 Request Token Lab → P3 Benchmark → P4 Platform → P5 Builder**입니다. 2026-08-25 기준 P4까지 완료했고 다음 구현 대상은 P5 Tokenizer Builder & Research입니다.
 
 ## 9. 단계별 기획
 
@@ -351,7 +355,9 @@ Cost 범위:
 
 ### Phase 4 — Platform & Extensibility
 
-**상태: 다음 구현 대상**
+**상태: ✅ 완료 (2026-08-25) — public exact-SHA 추가 경로만 남음**
+
+구현과 검증 근거: [`docs/P4-VALIDATION.md`](docs/P4-VALIDATION.md), [`ADR 0002`](docs/adr/0002-embeddable-core-cli-and-adapter-sdk.md)
 
 목표: 안정된 분석 계약을 offline, custom artifact, 다른 실행 환경으로 확장합니다.
 
@@ -369,13 +375,15 @@ Cost 범위:
 
 완료 조건:
 
-- app shell과 artifact cache가 같은 파일을 중복 소유하지 않음
-- offline 표시가 실제 사용 가능한 artifact와 일치
-- 401/404, HTML fallback, opaque response, 부분 파일을 정상 cache로 기록하지 않음
-- custom artifact가 remote code를 실행하지 않고 리소스 상한을 지킴
-- 라이선스·revision·engine compatibility가 export에 남음
+- [x] app shell과 artifact cache가 같은 파일을 중복 소유하지 않음
+- [x] offline 표시가 실제 사용 가능한 artifact와 일치
+- [x] 401/404, HTML fallback, opaque response, 부분 파일을 정상 cache로 기록하지 않음
+- [x] custom artifact가 remote code를 실행하지 않고 리소스 상한을 지킴
+- [x] 라이선스·revision·engine compatibility가 export에 남음
 
 ### Phase 5 — Tokenizer Builder & Research
+
+**상태: 다음 구현 대상**
 
 목표: 완성된 tokenizer를 관찰하는 것을 넘어 작은 tokenizer가 만들어지는 과정을 학습합니다.
 
@@ -463,8 +471,8 @@ Phase 전체를 한 번에 만들지 않고 다음 한 줄 흐름으로 위험�
 2. **기능 구현 완료, 외부 gate 진행 전:** P1 Inspector + Unicode A/B + export/share + 5분 Learn + Worker 기반
 3. **로컬 범위 완료:** P2 Request Token Lab + chat template overhead + context/cost. 공식 계수 gateway만 남음
 4. **완료:** P3 corpus Benchmark와 발표 모드·수업 링크
-5. **다음 구현 우선순위:** P4 offline/cache, custom artifact, core/CLI/SDK
-6. **장기 연구:** P5 tokenizer Builder/Trainer
+5. **완료:** P4 offline/cache, 세션 한정 custom artifact. core/CLI/SDK는 검토 결과 경계만 유지
+6. **다음 구현 우선순위:** P5 tokenizer Builder/Trainer
 
 모델 개수 추가나 정교한 비용 UI부터 시작하지 않습니다. 공통 계약 없이 추가하면 동일한 정확성·부분 실패·출처 문제를 각 화면에서 다시 풀어야 하기 때문입니다.
 

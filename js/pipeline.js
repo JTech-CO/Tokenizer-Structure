@@ -2,7 +2,7 @@
 import { el, escapeHtml, createTokenBadge, heatColor } from './dom.js';
 import { i18n } from './i18n.js';
 import { state } from './state.js';
-import { MODELS, loadTokenizer, tokenizeReal, tokenizeHeuristic, isSpecialToken } from './tokenizer.js';
+import { MODELS, loadTokenizer, sessionArtifacts, tokenizeReal, tokenizeHeuristic, isSpecialToken } from './tokenizer.js';
 import { PRICING, ratesFor, costOf, formatUSD, formatInt } from './pricing.js';
 import { createLatestRequest } from './latestRequest.js';
 import { analyzeInput } from './inspectorDomain.js';
@@ -13,7 +13,8 @@ const tokenizerLoad = createLatestRequest();
 export function buildModelSelect() {
     const sel = el('modelSelect');
     sel.innerHTML = '';
-    MODELS.forEach((m) => {
+    // 세션 한정 custom artifact도 같은 목록에서 고를 수 있게 한다.
+    [...MODELS, ...sessionArtifacts()].forEach((m) => {
         const o = document.createElement('option');
         o.value = m.id;
         o.textContent = m.label;

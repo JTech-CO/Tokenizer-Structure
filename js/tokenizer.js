@@ -1,6 +1,6 @@
 // tokenizer.js — 실제 토크나이저 엔진 (Transformers.js v3) + 휴리스틱 폴백
 // v3.8.1 고정: 이 시뮬레이터가 사용하는 컴포넌트 접근 API와의 호환성을 유지한다.
-import { AutoTokenizer, env } from '../vendor/huggingface-transformers-3.8.1.min.js';
+import { AutoTokenizer, PreTrainedTokenizer, env } from '../vendor/huggingface-transformers-3.8.1.min.js';
 import { MODELS } from './artifacts.js';
 import { createAnalysisRequest, createAnalysisResult } from './analysisContract.js';
 import { normalizeAnalysisOptions, toTokenizerCallOptions } from './analysisOptions.js';
@@ -139,6 +139,48 @@ export async function loadTokenizer(modelId, onProgress) {
     } finally {
         _pending.delete(modelId);
     }
+}
+
+// 세션 한정 custom artifact. 새로고침하면 사라지며 어디에도 저장하지 않는다.
+const _sessionArtifacts = [];
+
+export function sessionArtifacts() {
+    return _sessionArtifacts.map((entry) => ({ ...entry }));
+}
+
+/**
+ * 검증을 마친 로컬 tokenizer 파일로 세션 한정 artifact를 만든다.
+ * remote code를 부르지 않는 공개 생성자만 사용한다.
+ */
+export function registerSessionTokenizer({ id, label, tokenizerJson, tokenizerConfig, descriptor }) {
+    if (typeof id !== 'string' || id.trim() === '') throw new TypeError('id must be a non-empty string');
+    if (typeof label !== 'string' || label.trim() === '') throw new TypeError('label must be a non-empty string');
+
+    const tok = new PreTrainedTokenizer(tokenizerJson, tokenizerConfig || {});
+    tok.__modelId = id;
+    // 로컬 파일에는 commit이 없으므로 지문을 revision 자리에 두고 출처를 드러낸다.
+    tok.__revision = descriptor?.fingerprint?.sha256
+        ? `local:${descriptor.fingerprint.sha256.slice(0, 16)}`
+        : 'local:unknown';
+    _cache.set(id, tok);
+
+    const entry = {
+        id,
+        label,
+        family: descriptor?.summary?.modelType || 'custom',
+        context: 0,
+        source: 'local-upload',
+        revision: tok.__revision,
+        descriptor,
+    };
+    const existing = _sessionArtifacts.findIndex((item) => item.id === id);
+    if (existing >= 0) _sessionArtifacts.splice(existing, 1, entry);
+    else _sessionArtifacts.push(entry);
+    return { tok, entry };
+}
+
+export function clearSessionTokenizers() {
+    for (const entry of _sessionArtifacts.splice(0)) _cache.delete(entry.id);
 }
 
 export function disposeTokenizer(modelId) {

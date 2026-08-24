@@ -89,3 +89,13 @@ test('meta CSP blocks remote scripts and limits network access to HF artifacts',
     const indexCsp = contentSecurityPolicy(indexHtml);
     assert.match(indexCsp, /default-src 'none'/);
 });
+
+test('the vendored runtime still owns the artifact cache name the app relies on', () => {
+    // 이 앱은 별도 artifact cache를 만들지 않고 런타임이 쓰는 cache를 그대로 쓴다.
+    // 버전을 올려 이름이 바뀌면 offline pin이 조용히 다른 저장소를 가리키게 된다.
+    const vendorSource = readFileSync(
+        resolve(root, 'vendor', 'huggingface-transformers-3.8.1.min.js'),
+        'utf8',
+    );
+    assert.match(vendorSource, /caches\.open\("transformers-cache"\)/);
+});

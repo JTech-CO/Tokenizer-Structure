@@ -77,6 +77,18 @@
 
 측정값과 경계는 [P3 검증 기록](docs/P3-VALIDATION.md)에 있습니다.
 
+마지막으로 P4 Platform & Extensibility를 완료했습니다.
+
+- artifact 파일은 Transformers.js가 이미 소유한 cache를 그대로 쓰고, 이 앱은 manifest만 따로 관리 (같은 파일을 두 벌 갖지 않음)
+- 401·404·HTML fallback·opaque·부분 응답을 사유별로 거부하고, 실패 시 받은 조각을 삭제
+- `pin됨` / `런타임 캐시됨(pin 아님)` / `일부만 캐시됨` / `캐시 없음`을 구분해 offline 표시를 실제와 일치시킴
+- HTML은 network-first, 자산은 stale-while-revalidate인 app shell Service Worker (artifact 요청은 통과)
+- remote code(`auto_map`·`trust_remote_code`·모듈 경로 클래스)를 차단하고 component 화이트리스트·크기·깊이 상한을 지키는 세션 한정 custom artifact 업로드
+- 저장소·pin·custom artifact·데이터 신선도를 보는 운영 화면
+- Node 결정론적 회귀 테스트 229개, 8개 view × ko/en × 1280×720·320px axe 접근성 0 violations
+
+측정값과 경계는 [P4 검증 기록](docs/P4-VALIDATION.md), core/CLI/SDK 판단은 [ADR 0002](docs/adr/0002-embeddable-core-cli-and-adapter-sdk.md)에 있습니다.
+
 ## 3. 기술 스택 (Tech Stack)
 
 - **Frontend**: Vanilla JavaScript ES Modules, HTML5
@@ -121,7 +133,7 @@
    npm test
    ```
 
-   외부 패키지 설치 없이 Node.js 기본 test runner로 181개 테스트를 실행합니다.
+   외부 패키지 설치 없이 Node.js 기본 test runner로 229개 테스트를 실행합니다.
 
 GitHub Pages는 저장소를 `main` / `(root)`로 지정하면 `https://<user>.github.io/<repo>/`에서 build 없이 동작합니다.
 
@@ -131,6 +143,7 @@ GitHub Pages는 저장소를 `main` / `(root)`로 지정하면 `https://<user>.g
 tokenizer-structure/
 ├── index.html                    # GitHub Pages용 root redirect + strict CSP
 ├── llm_tokenizer_simulator.html  # main UI + CSP
+├── sw.js                         # app shell service worker (artifacts excluded)
 ├── css/
 │   ├── utilities.css             # local reset/utility CSS
 │   ├── base.css
@@ -139,7 +152,8 @@ tokenizer-structure/
 │   ├── views.css
 │   ├── p1.css                   # Inspector/Learn/editor 반응형 UI
 │   ├── p2.css                   # Request Lab 반응형 UI
-│   └── p3.css                   # 말뭉치 비교와 발표 모드
+│   ├── p3.css                   # 말뭉치 비교와 발표 모드
+│   └── p4.css                   # 운영 화면
 ├── js/
 │   ├── analysisContract.js       # AnalysisRequest/Result v2, encoding, roundtrip, provenance
 │   ├── analysisOptions.js        # UI/adapter/export/share canonical tokenizer options
@@ -162,6 +176,10 @@ tokenizer-structure/
 │   ├── benchmarkView.js          # corpus benchmark UI
 │   ├── presentation.js           # reveal reducer and presenter notes
 │   ├── presentationView.js       # presentation mode UI
+│   ├── cacheManifest.js          # storage ownership and cache-write policy
+│   ├── artifactCache.js          # artifact pin manifest over the runtime cache
+│   ├── customArtifact.js         # local tokenizer validation, no remote code
+│   ├── operateView.js            # storage, pins, custom artifact, freshness
 │   ├── workerProtocol.js         # versioned Worker messages + tokenizer LRU
 │   ├── tokenizerWorker.js        # Worker runtime
 │   ├── tokenizerWorkerClient.js  # stale/retry/cancel-aware client
@@ -207,14 +225,21 @@ tokenizer-structure/
 │   ├── benchmarkDomain.test.js
 │   ├── benchmarkRun.test.js
 │   ├── presentation.test.js
-│   └── benchmarkStatic.test.js
+│   ├── benchmarkStatic.test.js
+│   ├── cacheManifest.test.js
+│   ├── artifactCache.test.js
+│   ├── customArtifact.test.js
+│   ├── serviceWorker.test.js
+│   └── operateStatic.test.js
 ├── docs/
 │   ├── P0-VALIDATION.md
 │   ├── P1-VALIDATION.md
 │   ├── P1-USABILITY-PROTOCOL.md
 │   ├── P2-VALIDATION.md
 │   ├── P3-VALIDATION.md
-│   └── adr/0001-p0-contract-runtime-and-offsets.md
+│   ├── P4-VALIDATION.md
+│   ├── adr/0001-p0-contract-runtime-and-offsets.md
+│   └── adr/0002-embeddable-core-cli-and-adapter-sdk.md
 ├── package.json
 ├── ROADMAP.md
 ├── serve.bat
