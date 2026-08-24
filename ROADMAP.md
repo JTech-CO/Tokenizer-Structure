@@ -1,6 +1,6 @@
 # Tokenizer Structure 확장 기획 및 우선순위
 
-> 이 문서는 2026-08-24 기준 **P0·P1 구현 상태와 P2 이후의 추가·확장·구축 후보, 의존관계, 우선순위**를 함께 관리합니다. 검증 근거는 `docs/P0-VALIDATION.md`와 `docs/P1-VALIDATION.md`에 기록합니다.
+> 이 문서는 2026-08-25 기준 **P0·P1 구현 상태와 P2 이후의 추가·확장·구축 후보, 의존관계, 우선순위**를 함께 관리합니다. 검증 근거는 `docs/P0-VALIDATION.md`, `docs/P1-VALIDATION.md`, `docs/P1-USABILITY-PROTOCOL.md`에 기록합니다.
 
 ## 1. 한 줄 제품 방향
 
@@ -29,15 +29,15 @@
 - AnalysisRequest/AnalysisResult v2, canonical P1 옵션, encoding/roundtrip 계약
 - Inspector 다중행 입력·상세·A/B·export/share와 세 개의 5분 Learn 경로
 - Worker protocol/client/runtime, stale-result 억제, cancel/retry, 비동기 LRU
-- 80개 결정론적 회귀 테스트와 actual Chrome P1 통합 smoke
+- 85개 결정론적 회귀 테스트, actual Chrome P1 통합 smoke, Chromium axe 접근성 0 violations
 
 핵심 공백:
 
 - v3 공개 JS 계약에서 exact original/normalized offset, sequence ID, word ID가 unavailable이며 Inspector는 이를 추정하지 않고 표시함
 - raw text 토큰 수와 system·role·history·tool schema 등을 포함한 실제 요청 토큰 수의 차이를 설명하지 못함
-- 세 개의 Learn 경로는 구현됐지만 목표 사용자 80% 사용성 기준을 실제 표본으로 검증하지 않음
+- 세 개의 Learn 경로는 구현됐지만 목표 사용자 80% 사용성 기준을 실제 표본으로 검증하지 않음 (프로토콜만 확정)
 - Worker 기반은 실행 가능하지만 기존 pipeline UI 전체의 비동기 controller 이전과 성능 budget은 남음
-- cache/offline의 영속 저장 소유권 정책과 관리 UI가 없고 Firefox/WebKit·axe 자동화가 남음
+- cache/offline의 영속 저장 소유권 정책과 관리 UI가 없고 Firefox/WebKit 검증이 남음 (axe 자동 검증은 Chromium 기준 완료)
 
 ## 3. 대상 사용자와 제품 모드
 
@@ -262,8 +262,9 @@ Learn 범위:
 - [x] A/B 각 결과가 단일 분석 결과와 일치하고 변경 delta만 명확히 구분
 - [x] roundtrip 차이를 무조건 오류로 표시하지 않고 정규화·UNK·special 제거 등을 분류
 - [x] offset 미지원 artifact는 추정 위치 대신 미지원으로 표시
-- [ ] 외부 설명 없이 목표 사용자 80%가 5분 경로와 4문항 중 3문항을 완료하는 사용성 검증
+- [ ] 외부 설명 없이 목표 사용자 80%가 5분 경로와 4문항 중 3문항을 완료하는 사용성 검증 — 측정 프로토콜은 [`docs/P1-USABILITY-PROTOCOL.md`](docs/P1-USABILITY-PROTOCOL.md)로 확정, 실제 표본 측정 미실시
 - [x] 320px, 키보드만 사용, reduced motion에서 동일 핵심 작업을 완료
+- [x] Chromium axe 자동 검증에서 5개 view · ko/en · 320px · 모달 모두 violations 0
 
 ### Phase 2 — Request & Context Token Lab
 

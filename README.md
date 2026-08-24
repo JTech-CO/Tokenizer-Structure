@@ -48,9 +48,9 @@
 - versioned JSON/CSV/clipboard export와 원문을 기본 제외하는 URL 공유·복원
 - 세 개의 5분 Learn 경로, ko/en·초급/기술 설명, 4문항 퀴즈, 용어집
 - versioned Worker load/analyze/dispose/cancel 프로토콜, stale 억제, retry/cancel, 2-entry LRU
-- Node 결정론적 회귀 테스트 80개와 actual Chrome P1 통합 smoke 통과
+- Node 결정론적 회귀 테스트 85개, actual Chrome P1 통합 smoke, Chromium axe 접근성 0 violations 통과
 
-기능 구현 근거와 지원 경계는 [P1 검증 기록](docs/P1-VALIDATION.md)에 있습니다. 목표 사용자 80% 사용성, Firefox/WebKit, axe는 기능 구현과 구분해 남은 릴리스 gate로 관리합니다.
+기능 구현 근거와 지원 경계는 [P1 검증 기록](docs/P1-VALIDATION.md)에 있습니다. axe 자동 접근성 검증은 Chromium 기준으로 완료했고, 목표 사용자 80% 사용성([측정 프로토콜](docs/P1-USABILITY-PROTOCOL.md))과 Firefox/WebKit은 기능 구현과 구분해 남은 릴리스 gate로 관리합니다.
 
 ## 3. 기술 스택 (Tech Stack)
 
@@ -96,7 +96,7 @@
    npm test
    ```
 
-   외부 패키지 설치 없이 Node.js 기본 test runner로 80개 테스트를 실행합니다.
+   외부 패키지 설치 없이 Node.js 기본 test runner로 85개 테스트를 실행합니다.
 
 GitHub Pages는 저장소를 `main` / `(root)`로 지정하면 `https://<user>.github.io/<repo>/`에서 build 없이 동작합니다.
 
@@ -163,6 +163,7 @@ tokenizer-structure/
 ├── docs/
 │   ├── P0-VALIDATION.md
 │   ├── P1-VALIDATION.md
+│   ├── P1-USABILITY-PROTOCOL.md
 │   └── adr/0001-p0-contract-runtime-and-offsets.md
 ├── package.json
 ├── ROADMAP.md

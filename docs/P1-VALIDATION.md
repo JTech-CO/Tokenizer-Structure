@@ -1,7 +1,7 @@
 # P1 검증 기록 — Inspector, Learn, Worker Foundation
 
 - 상태: 기능 구현 완료 / 외부 사용성·cross-browser gate 진행 전
-- 검증일: 2026-08-24
+- 검증일: 2026-08-24, 접근성·배포 재검증 2026-08-25
 - 기준 브랜치: `main`
 - 대상: 정적 GitHub Pages UI, canonical analysis 계약, 브라우저 tokenizer Worker 경로
 
@@ -64,8 +64,8 @@
 
 ```text
 npm test
-tests 80
-pass 80
+tests 85
+pass 85
 fail 0
 ```
 
@@ -90,11 +90,53 @@ fail 0
 - `prefers-reduced-motion: reduce` 반영
 - runtime exception, console error, failed request, 4xx/5xx 응답 0개
 
+### axe 자동 접근성 검증 (2026-08-25)
+
+axe-core 4.10.3을 로컬(`http://localhost:8001`)과 동일한 정적 자산에 주입해 실행했습니다. 규칙 집합은 `wcag2a`, `wcag2aa`, `wcag21a`, `wcag21aa`, `best-practice`입니다. axe-core는 검증 도구로만 사용하고 저장소 의존성에는 추가하지 않았습니다.
+
+| 조건 | 대상 | violations |
+|---|---|---:|
+| 1280×800 / ko | 5개 view 전체 | 0 |
+| 1280×800 / en | 5개 view 전체 | 0 |
+| 1280×800 / ko | 단가표 모달 열림 | 0 |
+| 320×720 / ko | 5개 view 전체 | 0 |
+
+첫 실행에서 발견하고 수정한 위반:
+
+| 규칙 | 심각도 | 원인 | 조치 |
+|---|---|---|---|
+| `landmark-one-main` | moderate | `<main>`이 `pipelineView`·`learnView` 내부에만 있어 다른 view에서는 landmark가 사라짐 | 5개 tabpanel 전체를 감싸는 단일 `<main id="viewContainer">` 도입, 내부 `<main>`은 `div`/`section`으로 강등 |
+| `region` | moderate | tabpanel 내용이 landmark 밖에 존재 | 위와 동일 |
+| `scrollable-region-focusable` | serious | 스크롤 가능한 출력 영역이 키보드로 도달 불가 | step1~4·final·efficiency·cost·compare 출력에 `role="group" tabindex="0"`와 `aria-labelledby` 부여 |
+| `aria-prohibited-attr` | serious | `role` 없는 `div`에 `aria-label` 사용 | `matrixTableWrap`, `costTableWrap`, `tokenDetailWrap`, `inspectorLenses`에 `role="group"` 명시 |
+
+`<main>` 도입 과정에서 반응형 CSS(`#pipelineView > main`)와 애니메이션 CSS/JS(`main.anim`, `querySelector('main')`)가 래퍼를 잘못 가리키는 회귀가 발생했습니다. 320px에서 파이프라인이 4열 62px로 유지되어 내용이 잘리는 것을 확인하고 `#pipelineGrid`로 선택자를 고정했으며, 이 결합을 `tests/static.test.js`의 회귀 테스트로 잠갔습니다. 수정 후 320px에서 파이프라인은 단일 열(296px)이며 `document.scrollWidth = 320`, 모든 카드의 오른쪽 끝이 뷰포트 안에 있습니다.
+
+검토 후 통과 처리한 `incomplete` 항목:
+
+| 규칙 | 대상 | 판단 |
+|---|---|---|
+| `aria-valid-attr-value` | `#costTableBtn` | `aria-haspopup`가 있으면 axe가 `aria-controls` 대상을 정적으로 확인하지 못하는 알려진 한계. `#costModal`은 항상 DOM에 존재함을 확인 |
+| `color-contrast` (`nonBmp`) | `␣`(U+2423), `✕`(U+2715) 뱃지 | 기호 전용 문자에 대한 휴리스틱. 실제 대비는 검정 텍스트 / `rgb(179,226,255)` 배경 |
+| `color-contrast` (`elmPartiallyObscured`) | 320px의 token 상세 표 셀 | 표가 자체 가로 스크롤을 갖는 의도된 동작. 스크롤 영역 밖 셀은 대비를 계산할 수 없음 |
+
+키보드 확인: 실제 `Tab` 입력으로 `step3Output`에 도달하며 `:focus-visible`이 3px 파란 outline으로 표시됩니다.
+
+### 배포본 재검증 (2026-08-25)
+
+GitHub Pages 빌드 `f03b123` 기준 `https://jtech-co.github.io/Tokenizer-Structure/llm_tokenizer_simulator.html`에서 확인했습니다.
+
+- subpath 배포에서 실제 엔진 `gpt-4o` 로드, 5개 view tab 정상
+- module Worker `load` → `analyze` → `dispose`가 모두 `result` 응답
+- `A🤗
+한글` 분석 결과 AnalysisResult v2, Token IDs `[32, 50378, 245, 198, 3748, 20442]` (6개)로 로컬 결과와 일치
+- console 오류 0건
+
 ## 4. 남은 릴리스 게이트
 
-- 목표 사용자 대상 5분 경로 사용성 검증: 80% 완료, 4문항 중 3문항 정답 80% 기준은 아직 실제 사용자 표본으로 측정하지 않았습니다.
-- Firefox/WebKit desktop·320px, axe 자동 접근성 검증은 아직 남아 있습니다.
-- GitHub Pages 배포 URL은 push 후 새 정적 자산과 module Worker 경로를 다시 smoke 검증해야 합니다.
+- 목표 사용자 대상 5분 경로 사용성 검증: 80% 완료, 4문항 중 3문항 정답 80% 기준은 아직 실제 사용자 표본으로 측정하지 않았습니다. 측정 방법은 [`P1-USABILITY-PROTOCOL.md`](P1-USABILITY-PROTOCOL.md)로 고정했으며 프로토콜 확정은 게이트 통과가 아닙니다.
+- Firefox/WebKit desktop·320px 검증은 아직 남아 있습니다. axe 자동 접근성 검증은 Chromium 기준으로 완료했습니다(위 3절).
+- GitHub Pages 배포 URL smoke 검증은 `f03b123` 기준으로 완료했습니다. 이번 접근성 수정 이후 다시 확인해야 합니다.
 - 긴 입력을 포함한 UI 전체의 Worker controller 이전, 실제 progress/retry UX, 브라우저별 메모리 budget은 후속 성능 gate입니다.
 
 기능 구현 완료와 사용자 검증 완료를 구분합니다. 위 외부 gate가 끝나기 전에는 “목표 사용자 80% 달성”이나 “전 브라우저 완료”로 표시하지 않습니다.

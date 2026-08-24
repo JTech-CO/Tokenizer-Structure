@@ -290,7 +290,7 @@ export function processText() {
 }
 
 export function playStageAnim() {
-    const m = document.querySelector('main');
+    const m = document.getElementById('pipelineGrid');
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
         m.classList.remove('anim');
         return;

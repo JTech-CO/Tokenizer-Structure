@@ -81,3 +81,77 @@ test('scrollable data tables and cost sorting controls expose keyboard state', (
         assert.match(html, new RegExp(`id="${id}"[^>]*aria-pressed="(?:true|false)"`));
     }
 });
+
+test('every view tabpanel sits inside exactly one main landmark', () => {
+    const mainOpen = [...html.matchAll(/<main\b/g)].length;
+    const mainClose = [...html.matchAll(/<\/main>/g)].length;
+    assert.equal(mainOpen, 1, 'Exactly one <main> landmark is expected');
+    assert.equal(mainClose, 1);
+    assert.match(html, /<main id="viewContainer"/);
+
+    const container = html.slice(
+        html.indexOf('<main id="viewContainer"'),
+        html.indexOf('</main>'),
+    );
+    for (const id of ['pipelineView', 'compareView', 'matrixView', 'inspectorView', 'learnView']) {
+        assert.ok(container.includes(`id="${id}"`), `${id} must live inside the main landmark`);
+    }
+    // 모달은 landmark 밖 overlay이므로 main 안에 들어가지 않는다.
+    assert.ok(!container.includes('id="costModal"'));
+});
+
+test('scrollable output regions are keyboard reachable and labelled', () => {
+    const labelled = {
+        step1Output: 'step1Title',
+        step2Output: 'step2Title',
+        step3Output: 'step3Title',
+        step4Output: 'step4Title',
+        finalOutput: 'finalTitle',
+        efficiencyOutput: 'efficiencyTitle',
+        costOutput: 'costTitle',
+        cmpSubA: 'cmpLabelA',
+        cmpSubB: 'cmpLabelB',
+    };
+    for (const [id, labelledBy] of Object.entries(labelled)) {
+        assert.match(html, new RegExp(`id="${id}" role="group" tabindex="0" aria-labelledby="${labelledBy}"`));
+    }
+    for (const id of ['cmpIdsA', 'cmpIdsB']) {
+        assert.match(html, new RegExp(`id="${id}" role="group" tabindex="0"`));
+    }
+    // aria-label을 쓰는 div는 role 없이는 aria-prohibited-attr 위반이 된다.
+    for (const id of ['matrixTableWrap', 'costTableWrap', 'tokenDetailWrap', 'inspectorLenses']) {
+        assert.match(html, new RegExp(`id="${id}"[^>]*role="group"`));
+    }
+});
+
+test('pipeline grid selector stays in sync across HTML, CSS, and JS', () => {
+    assert.match(html, /<div id="pipelineGrid" class="[^"]*grid-cols-4/);
+    const baseCss = readFileSync(resolve(root, 'css/base.css'), 'utf8');
+    const viewsCss = readFileSync(resolve(root, 'css/views.css'), 'utf8');
+    const mainJs = readFileSync(resolve(root, 'js/main.js'), 'utf8');
+    const pipelineJs = readFileSync(resolve(root, 'js/pipeline.js'), 'utf8');
+
+    // 반응형 열 축소와 단계 애니메이션이 래퍼 <main>이 아니라 실제 grid를 대상으로 해야 한다.
+    assert.equal([...baseCss.matchAll(/#pipelineGrid\s*\{/g)].length, 2);
+    assert.match(viewsCss, /#pipelineGrid\.anim > \.step-card \{/);
+    assert.doesNotMatch(baseCss, /#pipelineView > main/);
+    assert.doesNotMatch(viewsCss, /(?<![-\w])main\.anim/);
+    for (const source of [mainJs, pipelineJs]) {
+        assert.match(source, /pipelineGrid/);
+        assert.doesNotMatch(source, /querySelector\('main'\)/);
+    }
+});
+
+test('i18n covers every aria-label applied at runtime', () => {
+    const i18nSource = readFileSync(resolve(root, 'js/i18n.js'), 'utf8');
+    const mainJs = readFileSync(resolve(root, 'js/main.js'), 'utf8');
+    const keys = [...mainJs.matchAll(/setAttribute\('aria-label', L\.(\w+)\)/g)].map((m) => m[1]);
+    assert.ok(keys.length >= 7, 'aria-label i18n wiring is expected in applyLang');
+    for (const key of new Set(keys)) {
+        assert.equal(
+            [...i18nSource.matchAll(new RegExp(`^ {8}${key}:`, 'gm'))].length,
+            2,
+            `${key} must exist in both ko and en dictionaries`,
+        );
+    }
+});

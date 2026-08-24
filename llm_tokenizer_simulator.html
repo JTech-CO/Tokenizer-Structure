@@ -71,10 +71,13 @@
         <div class="flex items-center gap-1 flex-wrap" id="presetBtns"></div>
     </header>
 
+    <!-- 단일 main 랜드마크: 5개 view tabpanel을 모두 포함한다 -->
+    <main id="viewContainer" class="flex-1 flex flex-col min-h-0">
+
     <!-- 뷰 컨테이너: 파이프라인 (기본) -->
     <div id="pipelineView" class="flex-1 flex flex-col gap-4 min-h-0" role="tabpanel" aria-labelledby="tabPipeline">
     <!-- 2. 파이프라인 시각화 영역 (가변 높이, 남은 공간 차지) -->
-    <main class="flex-1 grid grid-cols-4 gap-4 min-h-0">
+    <div id="pipelineGrid" class="flex-1 grid grid-cols-4 gap-4 min-h-0">
         
         <!-- Step 1: Normalization -->
         <div class="step-card border-current">
@@ -85,7 +88,7 @@
                 </h2>
                 <p class="text-[11px] mt-2 leading-tight opacity-80" id="step1Desc">모델 설정에 따라 유니코드 정규화·대소문자 처리 등을 수행합니다. 이 단계가 없는 모델도 있습니다.</p>
             </div>
-            <div class="p-4 overflow-y-auto flex-1 font-mono text-sm font-bold" id="step1Output">            </div>
+            <div class="p-4 overflow-y-auto flex-1 font-mono text-sm font-bold" id="step1Output" role="group" tabindex="0" aria-labelledby="step1Title">            </div>
         </div>
 
         <!-- Step 2: Pre-tokenization -->
@@ -97,7 +100,7 @@
                 </h2>
                 <p class="text-[11px] mt-2 leading-tight opacity-80" id="step2Desc">모델별 규칙(ByteLevel, Metaspace, 정규식 등)으로 후보 구간을 나눕니다. 공백은 '␣'로 표시합니다.</p>
             </div>
-            <div class="p-4 overflow-y-auto flex-1 flex flex-wrap content-start" id="step2Output">            </div>
+            <div class="p-4 overflow-y-auto flex-1 flex flex-wrap content-start" id="step2Output" role="group" tabindex="0" aria-labelledby="step2Title">            </div>
         </div>
 
         <!-- Step 3: Subword Tokenization -->
@@ -109,7 +112,7 @@
                 </h2>
                 <p class="text-[11px] mt-2 leading-tight opacity-80" id="step3Desc">학습된 어휘와 병합·분할 규칙으로 문자열 또는 바이트 조각을 토큰에 매핑합니다.</p>
             </div>
-            <div class="p-4 overflow-y-auto flex-1 flex flex-wrap content-start" id="step3Output">            </div>
+            <div class="p-4 overflow-y-auto flex-1 flex flex-wrap content-start" id="step3Output" role="group" tabindex="0" aria-labelledby="step3Title">            </div>
         </div>
 
         <!-- Step 4: Post-processing -->
@@ -121,10 +124,10 @@
                 </h2>
                 <p class="text-[11px] mt-2 leading-tight opacity-80" id="step4Desc">모델과 호출 옵션에 따라 특수 토큰이나 템플릿을 적용해 최종 시퀀스를 구성합니다.</p>
             </div>
-            <div class="p-4 overflow-y-auto flex-1 flex flex-wrap content-start" id="step4Output">            </div>
+            <div class="p-4 overflow-y-auto flex-1 flex flex-wrap content-start" id="step4Output" role="group" tabindex="0" aria-labelledby="step4Title">            </div>
         </div>
 
-    </main>
+    </div>
 
     <!-- 3. 분석 영역: Token IDs · 효율 · 비용 (고정 높이, 3분할) -->
     <footer class="shrink-0 h-[14.4rem] grid grid-cols-3 gap-4">
@@ -138,7 +141,7 @@
                 </h2>
                 <span class="text-xs font-bold" id="tokenCount">0 tokens</span>
             </div>
-            <div class="p-3 overflow-y-auto flex-1 font-mono text-xs leading-relaxed font-bold break-all" id="finalOutput">            </div>
+            <div class="p-3 overflow-y-auto flex-1 font-mono text-xs leading-relaxed font-bold break-all" id="finalOutput" role="group" tabindex="0" aria-labelledby="finalTitle">            </div>
         </div>
 
         <!-- 토큰 효율 -->
@@ -146,7 +149,7 @@
             <div class="px-3 py-2 border-b-2 border-current shrink-0">
                 <h2 class="text-xs font-bold" id="efficiencyTitle">토큰 효율</h2>
             </div>
-            <div class="p-3 overflow-y-auto flex-1" id="efficiencyOutput">            </div>
+            <div class="p-3 overflow-y-auto flex-1" id="efficiencyOutput" role="group" tabindex="0" aria-labelledby="efficiencyTitle">            </div>
         </div>
 
         <!-- 현재 토크나이저 기준 입력비 추정 -->
@@ -156,7 +159,7 @@
                 <label for="costModelSelect" class="sr-only" id="costModelLabel">단가 적용 모델</label>
                 <select id="costModelSelect" class="cost-select" title="단가 적용 모델"></select>
             </div>
-            <div class="p-3 overflow-y-auto flex-1" id="costOutput">            </div>
+            <div class="p-3 overflow-y-auto flex-1" id="costOutput" role="group" tabindex="0" aria-labelledby="costTitle">            </div>
         </div>
 
     </footer>
@@ -173,8 +176,8 @@
                     <span id="cmpStatusA" class="engine-status" role="status" aria-live="polite"></span>
                 </div>
                 <div class="px-3 py-2 border-b-2 border-current shrink-0 text-xs font-bold" id="cmpEffA"></div>
-                <div class="p-3 overflow-y-auto flex-1 flex flex-wrap content-start" id="cmpSubA"></div>
-                <div class="px-3 py-2 border-t-2 border-current shrink-0 font-mono text-[11px] font-bold break-all overflow-y-auto" style="max-height:6rem" id="cmpIdsA"></div>
+                <div class="p-3 overflow-y-auto flex-1 flex flex-wrap content-start" id="cmpSubA" role="group" tabindex="0" aria-labelledby="cmpLabelA"></div>
+                <div class="px-3 py-2 border-t-2 border-current shrink-0 font-mono text-[11px] font-bold break-all overflow-y-auto" style="max-height:6rem" id="cmpIdsA" role="group" tabindex="0"></div>
             </div>
             <!-- B 패널 -->
             <div class="border-2 border-current flex flex-col overflow-hidden">
@@ -184,8 +187,8 @@
                     <span id="cmpStatusB" class="engine-status" role="status" aria-live="polite"></span>
                 </div>
                 <div class="px-3 py-2 border-b-2 border-current shrink-0 text-xs font-bold" id="cmpEffB"></div>
-                <div class="p-3 overflow-y-auto flex-1 flex flex-wrap content-start" id="cmpSubB"></div>
-                <div class="px-3 py-2 border-t-2 border-current shrink-0 font-mono text-[11px] font-bold break-all overflow-y-auto" style="max-height:6rem" id="cmpIdsB"></div>
+                <div class="p-3 overflow-y-auto flex-1 flex flex-wrap content-start" id="cmpSubB" role="group" tabindex="0" aria-labelledby="cmpLabelB"></div>
+                <div class="px-3 py-2 border-t-2 border-current shrink-0 font-mono text-[11px] font-bold break-all overflow-y-auto" style="max-height:6rem" id="cmpIdsB" role="group" tabindex="0"></div>
             </div>
         </div>
         <div class="border-2 border-current px-4 py-2 shrink-0 text-sm font-bold text-center" id="compareDiff"></div>
@@ -194,7 +197,7 @@
     <!-- 뷰 컨테이너: 언어 효율 매트릭스 -->
     <div id="matrixView" class="flex-1 flex flex-col min-h-0 hidden" role="tabpanel" aria-labelledby="tabMatrix" hidden>
         <div id="matrixStatus" class="shrink-0 text-sm font-bold mb-2" role="status" aria-live="polite"></div>
-        <div class="flex-1 overflow-auto border-2 border-current" id="matrixTableWrap" tabindex="0" aria-label="입력 샘플 표 스크롤 영역">
+        <div class="flex-1 overflow-auto border-2 border-current" id="matrixTableWrap" role="group" tabindex="0" aria-label="입력 샘플 표 스크롤 영역">
             <table class="matrix-table" id="matrixTable"></table>
         </div>
     </div>
@@ -237,7 +240,7 @@
                     <h3 id="normalizationDiffTitle" class="p1-subheading">원문 ↔ 정규화 diff</h3>
                     <div id="normalizationDiff" class="text-diff"></div>
                     <h3 id="lensTitle" class="p1-subheading">Unicode A/B 렌즈</h3>
-                    <div id="inspectorLenses" class="lens-buttons" aria-label="Unicode A/B lenses"></div>
+                    <div id="inspectorLenses" class="lens-buttons" role="group" aria-label="Unicode A/B lenses"></div>
                     <div id="lensResult" class="mt-2"></div>
                 </div>
             </section>
@@ -253,7 +256,7 @@
                     </div>
                     <div id="sharePrivacyNote" class="p1-note mt-2">기본값은 원문을 링크에서 제외합니다.</div>
                 </div>
-                <div class="token-detail-wrap" tabindex="0" aria-label="Token detail table scroll area">
+                <div id="tokenDetailWrap" class="token-detail-wrap" role="group" tabindex="0" aria-label="Token detail table scroll area">
                     <table class="token-detail-table">
                         <thead><tr>
                             <th>#</th><th>ID</th><th id="tokenRawHead">raw token</th><th id="tokenDisplayHead">표시</th>
@@ -284,14 +287,16 @@
             <nav class="p1-panel inspector-scroll" aria-labelledby="lessonPathsTitle">
                 <h2 id="lessonPathsTitle" class="p1-subheading">학습 경로</h2><div id="lessonNav"></div>
             </nav>
-            <main class="p1-panel inspector-scroll" aria-labelledby="lessonContentTitle">
+            <section class="p1-panel inspector-scroll" aria-labelledby="lessonContentTitle">
                 <h2 id="lessonContentTitle" class="sr-only">학습 내용</h2><div id="lessonContent"></div>
-            </main>
+            </section>
             <aside class="p1-panel inspector-scroll" aria-labelledby="lessonGlossaryTitle">
                 <h2 id="lessonGlossaryTitle" class="p1-subheading">용어집</h2><div id="lessonGlossary"></div>
             </aside>
         </div>
-    </div>
+    </div><!-- /learnView -->
+
+    </main><!-- /viewContainer -->
 
     <!-- 모달: 수록 모델 단가 환산 -->
     <div id="costModal" class="modal-overlay" aria-hidden="true">
@@ -308,7 +313,7 @@
                 </div>
             </div>
             <div id="costModalSub" class="modal-sub"></div>
-            <div class="modal-body" id="costTableWrap" tabindex="0" aria-label="수록 모델 단가표 스크롤 영역">
+            <div class="modal-body" id="costTableWrap" role="group" tabindex="0" aria-label="수록 모델 단가표 스크롤 영역">
                 <table class="matrix-table" id="costTable"></table>
             </div>
         </div>

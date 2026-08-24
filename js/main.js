@@ -93,6 +93,10 @@ function applyLang() {
     el('matrixTableWrap').setAttribute('aria-label', L.matrixScrollLabel);
     el('costTableWrap').setAttribute('aria-label', L.costTableScrollLabel);
     el('viewTabs').setAttribute('aria-label', L.viewsLabel);
+    el('cmpIdsA').setAttribute('aria-label', L.compareIdsScrollLabelA);
+    el('cmpIdsB').setAttribute('aria-label', L.compareIdsScrollLabelB);
+    el('tokenDetailWrap').setAttribute('aria-label', L.tokenDetailScrollLabel);
+    el('inspectorLenses').setAttribute('aria-label', L.lensGroupLabel);
     el('costTableBtn').textContent = L.costTableBtn;
     el('costModalTitle').textContent = L.costModalTitle;
     el('sortBtnProvider').textContent = L.sortProvider;
@@ -162,7 +166,7 @@ function onHeatmapToggle() {
 
 function onAnimToggle() {
     state.animOn = el('animToggle').checked;
-    const m = document.querySelector('main');
+    const m = el('pipelineGrid');
     if (state.animOn) playStageAnim();
     else m.classList.remove('anim');
 }

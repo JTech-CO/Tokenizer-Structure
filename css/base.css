@@ -80,7 +80,7 @@ html, body {
         min-height: auto;
     }
 
-    #pipelineView > main {
+    #pipelineGrid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
@@ -116,7 +116,7 @@ html, body {
         width: 100%;
     }
 
-    #pipelineView > main {
+    #pipelineGrid {
         grid-template-columns: minmax(0, 1fr);
     }
 
