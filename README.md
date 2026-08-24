@@ -52,6 +52,18 @@
 
 기능 구현 근거와 지원 경계는 [P1 검증 기록](docs/P1-VALIDATION.md)에 있습니다. axe 자동 접근성 검증은 Chromium 기준으로 완료했고, 목표 사용자 80% 사용성([측정 프로토콜](docs/P1-USABILITY-PROTOCOL.md))과 Firefox/WebKit은 기능 구현과 구분해 남은 릴리스 gate로 관리합니다.
 
+2026-08-25에는 P2 Request & Context Token Lab의 로컬 범위를 완료했습니다.
+
+- `RequestSpec`/`RequestAnalysisResult` v1과 크기·깊이·키를 제한하는 tool schema 검증
+- 실제 렌더링으로 판정하는 chat template 능력(무시 / 거부 / system 병합을 각각 구분)
+- 본문만 · 템플릿 적용 · 구조 overhead를 독립 수치로 분리하고, 합이 정확히 일치하는 누적 세그먼트
+- 직렬화 결과를 다시 토큰화할 때의 BOS/EOS 중복 경고
+- 컨텍스트 예산·truncation 예측·고정 prefix / 가변 suffix 분리·turn별 재입력 토큰
+- 호출당·일간·월간 비용 시나리오, 티어와 수명주기 경고, 단가 없는 과금 요소의 명시적 제외
+- Node 결정론적 회귀 테스트 140개, Request Lab axe 접근성 0 violations
+
+측정값과 지원 경계는 [P2 검증 기록](docs/P2-VALIDATION.md)에 있습니다. 선택적 공식 계수 gateway는 계약과 화면 자리만 확보한 상태이며, 브라우저 배포물에는 API 키를 두지 않습니다.
+
 ## 3. 기술 스택 (Tech Stack)
 
 - **Frontend**: Vanilla JavaScript ES Modules, HTML5
@@ -96,7 +108,7 @@
    npm test
    ```
 
-   외부 패키지 설치 없이 Node.js 기본 test runner로 85개 테스트를 실행합니다.
+   외부 패키지 설치 없이 Node.js 기본 test runner로 140개 테스트를 실행합니다.
 
 GitHub Pages는 저장소를 `main` / `(root)`로 지정하면 `https://<user>.github.io/<repo>/`에서 build 없이 동작합니다.
 
@@ -112,7 +124,8 @@ tokenizer-structure/
 │   ├── controls.css
 │   ├── analysis.css
 │   ├── views.css
-│   └── p1.css                   # Inspector/Learn/editor 반응형 UI
+│   ├── p1.css                   # Inspector/Learn/editor 반응형 UI
+│   └── p2.css                   # Request Lab 반응형 UI
 ├── js/
 │   ├── analysisContract.js       # AnalysisRequest/Result v2, encoding, roundtrip, provenance
 │   ├── analysisOptions.js        # UI/adapter/export/share canonical tokenizer options
@@ -124,6 +137,11 @@ tokenizer-structure/
 │   ├── inputEditor.js            # line numbers, limits, input metrics
 │   ├── lessons.js                # versioned Learn content and scoring
 │   ├── learnView.js              # Learn UI
+│   ├── requestContract.js        # RequestSpec/RequestAnalysisResult v1
+│   ├── chatTemplate.js           # runtime capability probe + overhead segments
+│   ├── contextBudget.js          # cumulative timeline, truncation, cache prefix
+│   ├── costScenario.js           # tier/lifecycle/scenario cost model
+│   ├── requestLabView.js         # Request Lab UI
 │   ├── workerProtocol.js         # versioned Worker messages + tokenizer LRU
 │   ├── tokenizerWorker.js        # Worker runtime
 │   ├── tokenizerWorkerClient.js  # stale/retry/cancel-aware client
@@ -159,11 +177,17 @@ tokenizer-structure/
 │   ├── inspectorDomain.test.js
 │   ├── lessons.test.js
 │   ├── tokenizerP1.test.js
-│   └── workerProtocol.test.js
+│   ├── workerProtocol.test.js
+│   ├── requestContract.test.js
+│   ├── chatTemplate.test.js
+│   ├── contextBudget.test.js
+│   ├── costScenario.test.js
+│   └── requestLabStatic.test.js
 ├── docs/
 │   ├── P0-VALIDATION.md
 │   ├── P1-VALIDATION.md
 │   ├── P1-USABILITY-PROTOCOL.md
+│   ├── P2-VALIDATION.md
 │   └── adr/0001-p0-contract-runtime-and-offsets.md
 ├── package.json
 ├── ROADMAP.md

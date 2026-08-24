@@ -19,8 +19,9 @@ import {
     syncInspectorControls,
 } from './inspectorView.js';
 import { applyLearnLanguage, initLearn, renderLearn } from './learnView.js';
+import { applyRequestLabLanguage, initRequestLab, renderRequestLab } from './requestLabView.js';
 
-const VIEW_NAMES = new Set(['pipeline', 'compare', 'matrix', 'inspector', 'learn']);
+const VIEW_NAMES = new Set(['pipeline', 'compare', 'matrix', 'inspector', 'learn', 'request']);
 const LENS_NAMES = new Set(['spaces', 'nfc', 'nfd', 'case', 'emoji', 'code-indentation']);
 const LESSON_NAMES = new Set(['token-not-word', 'korean-emoji-utf8', 'same-text-different-tokenizers']);
 
@@ -53,6 +54,7 @@ function analyzeActiveView() {
     const result = processText();
     if (state.currentView === 'inspector') renderInspector(result);
     if (state.currentView === 'learn') renderLearn();
+    if (state.currentView === 'request') renderRequestLab();
     return { inputStatus, result };
 }
 
@@ -117,6 +119,7 @@ function applyLang() {
     el('costModalClose').setAttribute('aria-label', L.closeLabel);
     applyInspectorLanguage();
     applyLearnLanguage();
+    applyRequestLabLanguage();
     updateInputEditor(state.lang);
     buildCostSelect();
     buildPresets(onInput);
@@ -187,9 +190,11 @@ function switchView(name) {
             node.classList.toggle('hidden', isHidden);
         }
     });
-    el('pipelineControls').classList.toggle('hidden', !['pipeline', 'inspector', 'learn'].includes(name));
-    el('inputRow').classList.toggle('hidden', name === 'matrix');
-    el('presetBtns').classList.toggle('hidden', name === 'matrix' || name === 'learn');
+    // Request Lab은 자체 composer를 쓰므로 공용 입력줄과 preset을 숨기지만,
+    // artifact 선택은 chat template 능력을 바꾸므로 모델 컨트롤은 남긴다.
+    el('pipelineControls').classList.toggle('hidden', !['pipeline', 'inspector', 'learn', 'request'].includes(name));
+    el('inputRow').classList.toggle('hidden', name === 'matrix' || name === 'request');
+    el('presetBtns').classList.toggle('hidden', ['matrix', 'learn', 'request'].includes(name));
     document.querySelectorAll('.view-tab[data-view]').forEach((b) => {
         const active = b.dataset.view === name;
         b.classList.toggle('is-active', active);
@@ -204,6 +209,7 @@ function switchView(name) {
     if (name === 'matrix') ensureMatrix();
     if (name === 'inspector') analyzeActiveView();
     if (name === 'learn') { processText(); renderLearn(); }
+    if (name === 'request') renderRequestLab();
 }
 
 function onViewTabKeydown(event) {
@@ -263,6 +269,7 @@ async function init() {
     setupHoverSync();
     initInspector({ reanalyze: analyzeActiveView });
     initLearn({ openSample: openLessonSample });
+    initRequestLab(renderRequestLab);
 
     applyLang();
     syncInspectorControls();

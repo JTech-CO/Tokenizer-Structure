@@ -11,7 +11,7 @@ export const state = {
     animOn: false,                         // 단계 순차 애니메이션
     costModelId: 'gpt-4o',                 // footer 비용 추정 대상 모델(기본 토크나이저와 동일 계열)
     lastResult: null,                      // 마지막 토크나이즈 결과(부분 재렌더용)
-    currentView: 'pipeline',               // pipeline | compare | matrix | inspector | learn
+    currentView: 'pipeline',               // pipeline | compare | matrix | inspector | learn | request
     analysisOptions: { ...DEFAULT_ANALYSIS_OPTIONS }, // P1 canonical tokenizer options
     inspectorLens: 'nfd',                  // Unicode A/B lens
     learnLessonId: 'token-not-word',       // active five-minute path
@@ -25,4 +25,32 @@ export const state = {
     matrixBuilt: false,                    // 매트릭스 1회 계산 캐시
     costSortMode: 'provider',              // 비용 모달 정렬: provider | asc | desc
     lastCostTokens: 0,                     // 비용 모달 기준 토큰 수
+
+    // P2 Request Token Lab
+    requestSpec: {
+        messages: [
+            { role: 'system', content: 'You are a terse assistant. Answer in one sentence.' },
+            { role: 'user', content: '토크나이저가 뭐야?' },
+            { role: 'assistant', content: '문장을 모델이 다루는 토큰 조각으로 나누는 구성요소입니다.' },
+            { role: 'user', content: '서울 날씨 알려줘.' },
+        ],
+        tools: [{
+            type: 'function',
+            function: {
+                name: 'get_weather',
+                description: 'Return the current weather for a city.',
+                parameters: {
+                    type: 'object',
+                    properties: { city: { type: 'string', description: 'City name' } },
+                    required: ['city'],
+                },
+            },
+        }],
+        documents: [],
+        addGenerationPrompt: true,
+    },
+    requestCostModelId: 'gpt-4o',          // 비용 시나리오 단가 모델
+    requestCallsPerDay: 100,               // 일간 호출 수 시나리오
+    requestReservedOutput: 1024,           // 출력 여유(비용의 출력 토큰과 공유)
+    requestReservedReasoning: 0,           // 추론 여유
 };

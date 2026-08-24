@@ -15,6 +15,7 @@
     <link rel="stylesheet" href="css/analysis.css">
     <link rel="stylesheet" href="css/views.css">
     <link rel="stylesheet" href="css/p1.css">
+    <link rel="stylesheet" href="css/p2.css">
 </head>
 <body class="font-sans p-4 flex flex-col gap-4 box-border">
 
@@ -50,6 +51,7 @@
                 <button type="button" role="tab" tabindex="-1" aria-selected="false" aria-controls="matrixView" class="view-tab" data-view="matrix" id="tabMatrix">입력 샘플 매트릭스</button>
                 <button type="button" role="tab" tabindex="-1" aria-selected="false" aria-controls="inspectorView" class="view-tab" data-view="inspector" id="tabInspector">Inspector</button>
                 <button type="button" role="tab" tabindex="-1" aria-selected="false" aria-controls="learnView" class="view-tab" data-view="learn" id="tabLearn">5분 Learn</button>
+                <button type="button" role="tab" tabindex="-1" aria-selected="false" aria-controls="requestView" class="view-tab" data-view="request" id="tabRequest">Request Lab</button>
             </div>
             <button type="button" class="view-tab" id="costTableBtn" aria-haspopup="dialog" aria-controls="costModal" aria-expanded="false">수록 모델 단가표</button>
         </div>
@@ -295,6 +297,63 @@
             </aside>
         </div>
     </div><!-- /learnView -->
+
+    <!-- P2: 요청 구조·컨텍스트·비용 Lab -->
+    <div id="requestView" class="flex-1 flex flex-col gap-4 min-h-0 hidden" role="tabpanel" aria-labelledby="tabRequest" hidden>
+        <section class="p1-panel shrink-0" aria-labelledby="requestComposerTitle">
+            <div class="p1-panel-head">
+                <h2 id="requestComposerTitle">요청 구성</h2>
+                <div id="requestComposerNote" class="p1-note"></div>
+            </div>
+            <div id="requestMessages" class="request-messages"></div>
+            <div class="request-composer-actions">
+                <button type="button" id="requestAddMessage" class="view-tab">메시지 추가</button>
+                <label class="inspector-option"><span id="labelAddGenerationPrompt">생성 프롬프트 추가</span><input type="checkbox" id="optionAddGenerationPrompt" checked></label>
+            </div>
+            <div class="request-json-grid">
+                <label class="inspector-option request-json"><span id="labelRequestTools">tools (JSON 배열)</span><textarea id="requestTools" rows="3" spellcheck="false"></textarea></label>
+                <label class="inspector-option request-json"><span id="labelRequestDocuments">documents (JSON 배열)</span><textarea id="requestDocuments" rows="3" spellcheck="false"></textarea></label>
+            </div>
+            <div id="requestSpecStatus" class="p1-note" role="status" aria-live="polite"></div>
+        </section>
+
+        <div class="request-layout flex-1 min-h-0">
+            <section class="p1-panel inspector-scroll" aria-labelledby="requestStructureTitle">
+                <h2 id="requestStructureTitle" class="p1-subheading">구조와 overhead</h2>
+                <div id="requestOverhead" class="request-overhead"></div>
+                <div id="requestDuplication" class="request-note"></div>
+                <div id="requestCapabilities" class="request-caps"></div>
+                <details class="request-details">
+                    <summary id="requestTemplateSummary">직렬화 결과 보기</summary>
+                    <pre id="requestTemplateText" class="request-template" role="group" tabindex="0"></pre>
+                </details>
+                <div id="requestSegments" class="request-segments"></div>
+                <div id="requestProviderSlots" class="request-provider"></div>
+                <div id="requestUnsupported" class="request-unsupported"></div>
+            </section>
+
+            <section class="p1-panel inspector-scroll" aria-labelledby="requestContextTitle">
+                <h2 id="requestContextTitle" class="p1-subheading">컨텍스트 예산</h2>
+                <div class="request-controls">
+                    <label class="inspector-option"><span id="labelReservedOutput">출력 여유</span><input type="number" id="requestReservedOutput" min="0" max="200000" step="1" value="1024"></label>
+                    <label class="inspector-option"><span id="labelReservedReasoning">추론 여유</span><input type="number" id="requestReservedReasoning" min="0" max="200000" step="1" value="0"></label>
+                </div>
+                <div id="requestBudget" class="request-budget"></div>
+                <div id="requestTimeline" class="request-timeline"></div>
+                <div id="requestReplay" class="request-note"></div>
+            </section>
+
+            <section class="p1-panel inspector-scroll" aria-labelledby="requestCostTitle">
+                <h2 id="requestCostTitle" class="p1-subheading">비용 시나리오</h2>
+                <div class="request-controls">
+                    <label class="inspector-option"><span id="labelRequestCostModel">단가 적용 모델</span><select id="requestCostModel" class="cost-select"></select></label>
+                    <label class="inspector-option"><span id="labelRequestCalls">일간 호출 수</span><input type="number" id="requestCallsPerDay" min="1" max="1000000" step="1" value="100"></label>
+                </div>
+                <div id="requestCost" class="request-cost"></div>
+                <div id="requestCostExcluded" class="request-unsupported"></div>
+            </section>
+        </div>
+    </div><!-- /requestView -->
 
     </main><!-- /viewContainer -->
 

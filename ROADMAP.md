@@ -1,6 +1,6 @@
 # Tokenizer Structure 확장 기획 및 우선순위
 
-> 이 문서는 2026-08-25 기준 **P0·P1 구현 상태와 P2 이후의 추가·확장·구축 후보, 의존관계, 우선순위**를 함께 관리합니다. 검증 근거는 `docs/P0-VALIDATION.md`, `docs/P1-VALIDATION.md`, `docs/P1-USABILITY-PROTOCOL.md`에 기록합니다.
+> 이 문서는 2026-08-25 기준 **P0·P1·P2 구현 상태와 P3 이후의 추가·확장·구축 후보, 의존관계, 우선순위**를 함께 관리합니다. 검증 근거는 `docs/P0-VALIDATION.md`, `docs/P1-VALIDATION.md`, `docs/P1-USABILITY-PROTOCOL.md`, `docs/P2-VALIDATION.md`에 기록합니다.
 
 ## 1. 한 줄 제품 방향
 
@@ -30,14 +30,17 @@
 - Inspector 다중행 입력·상세·A/B·export/share와 세 개의 5분 Learn 경로
 - Worker protocol/client/runtime, stale-result 억제, cancel/retry, 비동기 LRU
 - 85개 결정론적 회귀 테스트, actual Chrome P1 통합 smoke, Chromium axe 접근성 0 violations
+- RequestSpec/RequestAnalysisResult v1, chat template 능력 런타임 판정, 정확 합산 세그먼트
+- 컨텍스트 예산·고정 prefix 분리·turn 재입력, 조건 기반 비용 시나리오와 수명주기 경고
+- 140개 결정론적 회귀 테스트
 
 핵심 공백:
 
 - v3 공개 JS 계약에서 exact original/normalized offset, sequence ID, word ID가 unavailable이며 Inspector는 이를 추정하지 않고 표시함
-- raw text 토큰 수와 system·role·history·tool schema 등을 포함한 실제 요청 토큰 수의 차이를 설명하지 못함
 - 세 개의 Learn 경로는 구현됐지만 목표 사용자 80% 사용성 기준을 실제 표본으로 검증하지 않음 (프로토콜만 확정)
 - Worker 기반은 실행 가능하지만 기존 pipeline UI 전체의 비동기 controller 이전과 성능 budget은 남음
 - cache/offline의 영속 저장 소유권 정책과 관리 UI가 없고 Firefox/WebKit 검증이 남음 (axe 자동 검증은 Chromium 기준 완료)
+- 공식 계수 gateway가 없어 provider preflight·actual usage 자리는 값 없이 표시만 되고, cached/batch/priority 단가와 tool 과금 데이터가 카탈로그에 없음
 
 ## 3. 대상 사용자와 제품 모드
 
@@ -158,9 +161,9 @@ P0는 점수와 무관한 필수 게이트입니다. P1 이후는 사용자 가�
 | P1 | Inspector·입력 준비·Unicode A/B·export/share | 매우 높음 | 큼 | 중 | ✅ 기능 구현·Chrome 검증 완료; 외부 사용성 gate 남음 |
 | P1 | Learn 경로·용어집·초급/기술 설명 | 높음 | 중 | 낮음 | ✅ 기능 구현 완료; 목표 사용자 검증 남음 |
 | P1 | Worker 기본 프로토콜·latest-result·memory LRU | 높음 | 큼 | 높음 | ✅ protocol/runtime/client/LRU 및 실제 Worker canary 완료 |
-| P2 | Request Token Lab·chat-template overhead | 매우 높음 | 매우 큼 | 높음 | 가장 큰 제품 차별화, P0/P1 계약 필요 |
-| P2 | 컨텍스트·cache·조건 기반 비용 시나리오 | 매우 높음 | 큼 | 높음 | raw token count를 실제 의사결정으로 연결 |
-| P2 | 선택적 공식 계수 gateway | 높음 | 큼 | 매우 높음 | 키·개인정보·제공사 의미를 분리해야 함 |
+| P2 | Request Token Lab·chat-template overhead | 매우 높음 | 매우 큼 | 높음 | ✅ 완료 — 6개 artifact에서 능력 판정과 정확 합산 세그먼트 검증 |
+| P2 | 컨텍스트·cache·조건 기반 비용 시나리오 | 매우 높음 | 큼 | 높음 | ✅ 완료 — 단가 없는 과금 요소는 0이 아니라 제외 항목으로 표시 |
+| P2 | 선택적 공식 계수 gateway | 높음 | 큼 | 매우 높음 | ⏳ 미착수 — 계약·화면 자리만 확보, 서버 프록시 또는 로컬 adapter 선행 필요 |
 | P3 | 2~4 artifact 말뭉치 Benchmark | 높음 | 큼 | 중상 | 엔진·Worker가 안정된 뒤 확장 |
 | P3 | 발표 모드·재현 가능한 수업 링크 | 중 | 중 | 낮음 | Learn 결과를 교실·발표로 확장 |
 | P4 | cache 관리·app-shell offline·선택 pin | 중상 | 큼 | 높음 | 운영성 향상, 초기 핵심 가치 뒤에 배치 |
@@ -168,7 +171,7 @@ P0는 점수와 무관한 필수 게이트입니다. P1 이후는 사용자 가�
 | P4 | embeddable core·CLI·adapter SDK | 중상 | 매우 큼 | 높음 | 재사용 플랫폼으로 확장 |
 | P5 | 소형 BPE/Unigram Builder·학습 애니메이션 | 중 | 매우 큼 | 중상 | 핵심 분석 제품이 안정된 뒤 연구·교육 확장 |
 
-핵심 순서는 **P0 신뢰 기반 → P1 Inspector/Learn → P2 Request Token Lab → P3 Benchmark → P4 Platform → P5 Builder**입니다.
+핵심 순서는 **P0 신뢰 기반 → P1 Inspector/Learn → P2 Request Token Lab → P3 Benchmark → P4 Platform → P5 Builder**입니다. 2026-08-25 기준 P2의 로컬 범위까지 완료했고 다음 구현 대상은 P3 corpus Benchmark입니다.
 
 ## 9. 단계별 기획
 
@@ -268,6 +271,10 @@ Learn 범위:
 
 ### Phase 2 — Request & Context Token Lab
 
+**상태: ✅ 로컬 범위 구현 완료 (2026-08-25) / ⏳ 선택적 공식 계수 gateway 미착수**
+
+구현과 검증 근거: [`docs/P2-VALIDATION.md`](docs/P2-VALIDATION.md)
+
 목표: “텍스트 한 덩어리의 토큰 수”를 “실제 API 요청의 구조·컨텍스트·비용”으로 확장합니다.
 
 Request Composer 범위:
@@ -307,14 +314,16 @@ Cost 범위:
 
 완료 조건:
 
-- raw, template, provider overhead가 독립 수치로 재현됨
-- 제공사별 exact/preflight/estimate/actual 의미를 화면과 export에 보존
-- 지원하지 않는 역할·도구·modality·과금 요소가 0으로 보이지 않음
-- 티어·날짜 경계는 N-1/N/N+1과 D-1/D/D+1 fixture를 통과
-- 브라우저 배포물과 저장소에 비밀 키가 없음
-- gateway 미설치 상태에서도 로컬 학습·분석 기능이 완전하게 동작
+- [x] raw, template, provider overhead가 독립 수치로 재현됨
+- [x] 제공사별 exact/preflight/estimate/actual 의미를 화면과 export에 보존 (preflight·actual은 gateway 미연동으로 값 없음)
+- [x] 지원하지 않는 역할·도구·modality·과금 요소가 0으로 보이지 않음
+- [x] 티어·날짜 경계는 N-1/N/N+1과 D-1/D/D+1 fixture를 통과
+- [x] 브라우저 배포물과 저장소에 비밀 키가 없음
+- [x] gateway 미설치 상태에서도 로컬 학습·분석 기능이 완전하게 동작
 
 ### Phase 3 — Corpus Benchmark & Teaching
+
+**상태: 다음 구현 대상**
 
 목표: 단일 예시를 재현 가능한 말뭉치 비교와 수업 시나리오로 확장합니다.
 
@@ -427,7 +436,7 @@ Cost 범위:
 
 ## 12. 최초 수직 슬라이스
 
-2026-08-24 기준 1~6은 완료했으며 7부터는 P2 Request Token Lab 범위입니다.
+2026-08-25 기준 1~8을 완료했으며 9는 공식 계수 gateway가 선행되어야 합니다.
 
 Phase 전체를 한 번에 만들지 않고 다음 한 줄 흐름으로 위험을 먼저 줄입니다.
 
@@ -447,8 +456,8 @@ Phase 전체를 한 번에 만들지 않고 다음 한 줄 흐름으로 위험�
 
 1. **완료:** P0 계약·capability·provenance·offset/v4 결정과 공급망 기반
 2. **기능 구현 완료, 외부 gate 진행 전:** P1 Inspector + Unicode A/B + export/share + 5분 Learn + Worker 기반
-3. **다음 구현 우선순위:** P2 Request Token Lab + chat template + context/cost
-4. **그다음:** P3 corpus Benchmark와 발표 모드
+3. **로컬 범위 완료:** P2 Request Token Lab + chat template overhead + context/cost. 공식 계수 gateway만 남음
+4. **다음 구현 우선순위:** P3 corpus Benchmark와 발표 모드
 5. **플랫폼화 이후:** P4 offline/cache, custom artifact, core/CLI/SDK
 6. **장기 연구:** P5 tokenizer Builder/Trainer
 
