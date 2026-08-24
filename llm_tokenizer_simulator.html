@@ -18,6 +18,7 @@
     <link rel="stylesheet" href="css/p2.css">
     <link rel="stylesheet" href="css/p3.css">
     <link rel="stylesheet" href="css/p4.css">
+    <link rel="stylesheet" href="css/p5.css">
 </head>
 <body class="font-sans p-4 flex flex-col gap-4 box-border">
 
@@ -56,6 +57,7 @@
                 <button type="button" role="tab" tabindex="-1" aria-selected="false" aria-controls="learnView" class="view-tab" data-view="learn" id="tabLearn">5분 Learn</button>
                 <button type="button" role="tab" tabindex="-1" aria-selected="false" aria-controls="requestView" class="view-tab" data-view="request" id="tabRequest">Request Lab</button>
                 <button type="button" role="tab" tabindex="-1" aria-selected="false" aria-controls="benchmarkView" class="view-tab" data-view="benchmark" id="tabBenchmark">말뭉치 비교</button>
+                <button type="button" role="tab" tabindex="-1" aria-selected="false" aria-controls="builderView" class="view-tab" data-view="builder" id="tabBuilder">Builder</button>
                 <button type="button" role="tab" tabindex="-1" aria-selected="false" aria-controls="operateView" class="view-tab" data-view="operate" id="tabOperate">운영</button>
             </div>
             <button type="button" class="view-tab" id="costTableBtn" aria-haspopup="dialog" aria-controls="costModal" aria-expanded="false">수록 모델 단가표</button>
@@ -78,7 +80,7 @@
         <div class="flex items-center gap-1 flex-wrap" id="presetBtns"></div>
     </header>
 
-    <!-- 단일 main 랜드마크: 8개 view tabpanel을 모두 포함한다 -->
+    <!-- 단일 main 랜드마크: 9개 view tabpanel을 모두 포함한다 -->
     <main id="viewContainer" class="flex-1 flex flex-col min-h-0">
 
     <!-- 뷰 컨테이너: 파이프라인 (기본) -->
@@ -406,6 +408,54 @@
             </section>
         </div>
     </div><!-- /benchmarkView -->
+
+    <!-- P5: 소형 BPE Builder와 merge replay -->
+    <div id="builderView" class="flex-1 flex flex-col gap-4 min-h-0 hidden" role="tabpanel" aria-labelledby="tabBuilder" hidden>
+        <section class="p1-panel shrink-0" aria-labelledby="builderSetupTitle">
+            <div class="p1-panel-head">
+                <h2 id="builderSetupTitle">작은 말뭉치로 BPE 만들기</h2>
+                <div id="builderSetupNote" class="p1-note"></div>
+            </div>
+            <label class="inspector-option builder-corpus">
+                <span id="labelBuilderCorpus">말뭉치 (공백으로 단어 구분)</span>
+                <textarea id="builderCorpus" rows="3" spellcheck="false"></textarea>
+            </label>
+            <div class="builder-controls">
+                <label class="inspector-option"><span id="labelBuilderMerges">merge 횟수</span><input type="number" id="builderMerges" min="0" max="200" step="1" value="20"></label>
+                <label class="inspector-option"><span id="labelBuilderLowercase">소문자로 통일</span><input type="checkbox" id="builderLowercase"></label>
+                <label class="inspector-option"><span id="labelBuilderSpecial">특수 토큰 (쉼표 구분)</span><input type="text" id="builderSpecialTokens" spellcheck="false"></label>
+                <label class="inspector-option"><span id="labelBuilderProbe">인코딩해 볼 단어</span><input type="text" id="builderProbe" spellcheck="false"></label>
+            </div>
+            <div class="builder-actions">
+                <button type="button" id="builderRunBtn" class="view-tab">학습 실행</button>
+                <span id="builderScale" class="p1-note"></span>
+                <span id="builderStatus" class="p1-note" role="status" aria-live="polite"></span>
+            </div>
+        </section>
+
+        <div class="builder-layout flex-1 min-h-0">
+            <section class="p1-panel inspector-scroll" aria-labelledby="builderStepTitle">
+                <h2 id="builderStepTitle" class="p1-subheading">단계 되짚기</h2>
+                <div class="builder-step-controls">
+                    <button type="button" id="builderFirstBtn" class="view-tab">처음</button>
+                    <button type="button" id="builderPrevBtn" class="view-tab">이전</button>
+                    <button type="button" id="builderNextBtn" class="view-tab">다음</button>
+                    <button type="button" id="builderLastBtn" class="view-tab">끝</button>
+                    <input type="range" id="builderStepRange" min="0" max="0" step="1" value="0">
+                    <span id="builderStepCounter" class="builder-counter" role="status" aria-live="polite"></span>
+                </div>
+                <div id="builderStepMetrics" class="builder-metrics"></div>
+                <div id="builderCandidates" class="builder-candidates"></div>
+            </section>
+
+            <section class="p1-panel inspector-scroll" aria-labelledby="builderDetailTitle" tabindex="0">
+                <h2 id="builderDetailTitle" class="p1-subheading">단어 분해와 인코딩</h2>
+                <div id="builderWords" class="builder-table"></div>
+                <div id="builderEncode" class="builder-encode"></div>
+                <div id="builderCompare" class="builder-table"></div>
+            </section>
+        </div>
+    </div><!-- /builderView -->
 
     <!-- P4: 저장소·offline pin·custom artifact 운영 -->
     <div id="operateView" class="flex-1 flex flex-col gap-4 min-h-0 hidden" role="tabpanel" aria-labelledby="tabOperate" hidden>

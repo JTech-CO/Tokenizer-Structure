@@ -62,4 +62,12 @@ export const state = {
     benchmarkColumns: ['Xenova/gpt-4o', 'onnx-community/gemma-3-1b-it-ONNX'],
     presentationOn: false,                 // 발표 모드
     presentationReveal: { total: 0, revealed: 0 },
+
+    // P5 소형 BPE Builder
+    builderCorpus: 'low low low low low lower lower newest newest newest newest newest newest widest widest widest',
+    builderMerges: 20,
+    builderLowercase: false,
+    builderSpecialTokens: '',
+    builderProbe: 'lowest',
+    builderStep: 0,
 };

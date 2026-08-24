@@ -25,8 +25,9 @@ import { applyPresentationLanguage, initPresentation, refreshPresentation, setPr
 import { BUILTIN_CORPORA } from './corpus.js';
 import { BENCHMARK_METRICS } from './benchmarkDomain.js';
 import { applyOperateLanguage, initOperate, registerAppShellWorker, renderOperate } from './operateView.js';
+import { applyBuilderLanguage, initBuilder } from './builderView.js';
 
-const VIEW_NAMES = new Set(['pipeline', 'compare', 'matrix', 'inspector', 'learn', 'request', 'benchmark', 'operate']);
+const VIEW_NAMES = new Set(['pipeline', 'compare', 'matrix', 'inspector', 'learn', 'request', 'benchmark', 'operate', 'builder']);
 const CORPUS_IDS = new Set([...BUILTIN_CORPORA.map((corpus) => corpus.id), 'user']);
 const MODEL_IDS = new Set(MODELS.map((model) => model.id));
 const LENS_NAMES = new Set(['spaces', 'nfc', 'nfd', 'case', 'emoji', 'code-indentation']);
@@ -141,6 +142,7 @@ function applyLang() {
     applyRequestLabLanguage();
     applyBenchmarkLanguage();
     applyOperateLanguage();
+    applyBuilderLanguage();
     applyPresentationLanguage();
     updateInputEditor(state.lang);
     buildCostSelect();
@@ -217,8 +219,8 @@ function switchView(name) {
     // Request Lab은 자체 composer를 쓰므로 공용 입력줄과 preset을 숨기지만,
     // artifact 선택은 chat template 능력을 바꾸므로 모델 컨트롤은 남긴다.
     el('pipelineControls').classList.toggle('hidden', !['pipeline', 'inspector', 'learn', 'request'].includes(name));
-    el('inputRow').classList.toggle('hidden', ['matrix', 'request', 'benchmark', 'operate'].includes(name));
-    el('presetBtns').classList.toggle('hidden', ['matrix', 'learn', 'request', 'benchmark', 'operate'].includes(name));
+    el('inputRow').classList.toggle('hidden', ['matrix', 'request', 'benchmark', 'operate', 'builder'].includes(name));
+    el('presetBtns').classList.toggle('hidden', ['matrix', 'learn', 'request', 'benchmark', 'operate', 'builder'].includes(name));
     document.querySelectorAll('.view-tab[data-view]').forEach((b) => {
         const active = b.dataset.view === name;
         b.classList.toggle('is-active', active);
@@ -299,6 +301,7 @@ async function init() {
     initRequestLab(renderRequestLab);
     initBenchmark({ onReveal: (total) => refreshPresentation(total) });
     initOperate();
+    initBuilder();
     initPresentation();
 
     applyLang();

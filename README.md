@@ -89,6 +89,18 @@
 
 측정값과 경계는 [P4 검증 기록](docs/P4-VALIDATION.md), core/CLI/SDK 판단은 [ADR 0002](docs/adr/0002-embeddable-core-cli-and-adapter-sdk.md)에 있습니다.
 
+끝으로 P5 Tokenizer Builder & Research의 BPE 범위를 완료했습니다.
+
+- 작은 말뭉치에서 merge 규칙이 쌓이는 과정을 단계별로 되짚는 결정론적 BPE 학습기
+- 각 단계의 후보 빈도와 선택 이유, 단어 분해 변화, vocab 크기와 전체 심볼 수
+- 학습한 규칙으로 새 단어를 인코딩하고, merge 횟수에 따라 조각 수가 어떻게 줄어드는지 비교
+- 같은 말뭉치는 항상 같은 merge 순서(동점은 사전순 확정) — 단어 순서를 바꿔도 결과 동일
+- 상한(말뭉치 5,000 code points·단어 400종·merge 200회)을 넘으면 자르지 않고 사유와 함께 거부
+- 실행 전 규모 미리보기와 실행 후 실측 시간을 함께 표시하며 "실시간 학습"으로 약속하지 않음
+- Node 결정론적 회귀 테스트 249개, 9개 view × ko/en × 1280×800·320px axe 접근성 0 violations
+
+측정값은 [P5 검증 기록](docs/P5-VALIDATION.md), lesson·artifact·adapter 추가 방법은 [확장 가이드](docs/EXTENDING.md)에 있습니다.
+
 ## 3. 기술 스택 (Tech Stack)
 
 - **Frontend**: Vanilla JavaScript ES Modules, HTML5
@@ -133,7 +145,7 @@
    npm test
    ```
 
-   외부 패키지 설치 없이 Node.js 기본 test runner로 229개 테스트를 실행합니다.
+   외부 패키지 설치 없이 Node.js 기본 test runner로 249개 테스트를 실행합니다.
 
 GitHub Pages는 저장소를 `main` / `(root)`로 지정하면 `https://<user>.github.io/<repo>/`에서 build 없이 동작합니다.
 
@@ -153,7 +165,8 @@ tokenizer-structure/
 │   ├── p1.css                   # Inspector/Learn/editor 반응형 UI
 │   ├── p2.css                   # Request Lab 반응형 UI
 │   ├── p3.css                   # 말뭉치 비교와 발표 모드
-│   └── p4.css                   # 운영 화면
+│   ├── p4.css                   # 운영 화면
+│   └── p5.css                   # 소형 BPE Builder
 ├── js/
 │   ├── analysisContract.js       # AnalysisRequest/Result v2, encoding, roundtrip, provenance
 │   ├── analysisOptions.js        # UI/adapter/export/share canonical tokenizer options
@@ -180,6 +193,8 @@ tokenizer-structure/
 │   ├── artifactCache.js          # artifact pin manifest over the runtime cache
 │   ├── customArtifact.js         # local tokenizer validation, no remote code
 │   ├── operateView.js            # storage, pins, custom artifact, freshness
+│   ├── bpeTrainer.js             # deterministic small-corpus BPE and merge replay
+│   ├── builderView.js            # BPE builder UI
 │   ├── workerProtocol.js         # versioned Worker messages + tokenizer LRU
 │   ├── tokenizerWorker.js        # Worker runtime
 │   ├── tokenizerWorkerClient.js  # stale/retry/cancel-aware client
@@ -230,7 +245,9 @@ tokenizer-structure/
 │   ├── artifactCache.test.js
 │   ├── customArtifact.test.js
 │   ├── serviceWorker.test.js
-│   └── operateStatic.test.js
+│   ├── operateStatic.test.js
+│   ├── bpeTrainer.test.js
+│   └── builderStatic.test.js
 ├── docs/
 │   ├── P0-VALIDATION.md
 │   ├── P1-VALIDATION.md
@@ -238,6 +255,8 @@ tokenizer-structure/
 │   ├── P2-VALIDATION.md
 │   ├── P3-VALIDATION.md
 │   ├── P4-VALIDATION.md
+│   ├── P5-VALIDATION.md
+│   ├── EXTENDING.md              # lesson·artifact·adapter 추가 가이드
 │   ├── adr/0001-p0-contract-runtime-and-offsets.md
 │   └── adr/0002-embeddable-core-cli-and-adapter-sdk.md
 ├── package.json

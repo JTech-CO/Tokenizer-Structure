@@ -1,0 +1,212 @@
+/* P5 소형 BPE Builder */
+
+#builderView {
+    overflow: auto;
+}
+
+.builder-corpus {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    padding: 0.8rem 0.8rem 0;
+    font-size: 0.72rem;
+    font-weight: 700;
+}
+
+.builder-corpus textarea {
+    box-sizing: border-box;
+    width: 100%;
+    border: 2px solid #000000;
+    border-radius: 0;
+    background: #ffffff;
+    color: #000000;
+    padding: 0.45rem 0.5rem;
+    resize: vertical;
+    font: 400 0.72rem/1.5 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.builder-corpus textarea[aria-invalid="true"] {
+    background: #fee2e2;
+}
+
+.builder-controls {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.7rem;
+    padding: 0.7rem 0.8rem 0;
+}
+
+.builder-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    padding: 0.7rem 0.8rem;
+}
+
+.builder-actions .p1-note {
+    flex-basis: 100%;
+    overflow-wrap: anywhere;
+}
+
+#builderScale[data-kind="error"],
+#builderStatus[data-kind="error"] {
+    color: #991b1b;
+    font-weight: 700;
+}
+
+.builder-layout {
+    display: grid;
+    grid-template-columns: minmax(20rem, 1fr) minmax(22rem, 1.2fr);
+    gap: 1rem;
+    min-height: 0;
+}
+
+.builder-step-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.6rem;
+}
+
+.builder-step-controls input[type="range"] {
+    flex: 1 1 8rem;
+    min-width: 6rem;
+}
+
+.builder-counter {
+    font-size: 0.7rem;
+    font-weight: 700;
+}
+
+.builder-metrics {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.45rem;
+    margin-bottom: 0.7rem;
+}
+
+.builder-metric {
+    border: 1px solid #000000;
+    padding: 0.4rem 0.5rem;
+    min-width: 0;
+}
+
+.builder-metric span {
+    display: block;
+    font-size: 0.6rem;
+    color: #4b5563;
+}
+
+.builder-metric strong {
+    display: block;
+    font-size: 0.85rem;
+    overflow-wrap: anywhere;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.builder-candidate {
+    display: grid;
+    grid-template-columns: minmax(5rem, auto) minmax(0, 1fr) 2.5rem;
+    align-items: center;
+    gap: 0.4rem;
+    margin-bottom: 0.25rem;
+    font-size: 0.68rem;
+}
+
+.builder-candidate[data-chosen="true"] {
+    font-weight: 700;
+}
+
+.builder-pair {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    overflow-wrap: anywhere;
+}
+
+.builder-bar {
+    display: block;
+    height: 0.7rem;
+    border: 1px solid #000000;
+    background: #ffffff;
+}
+
+.builder-bar-fill {
+    display: block;
+    height: 100%;
+    background: #bfdbfe;
+}
+
+.builder-candidate[data-chosen="true"] .builder-bar-fill {
+    background: #86efac;
+}
+
+.builder-count {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+.builder-table table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.68rem;
+}
+
+.builder-table th,
+.builder-table td {
+    border: 1px solid #000000;
+    padding: 0.25rem 0.35rem;
+    text-align: left;
+    vertical-align: top;
+}
+
+.builder-table tr:first-child th {
+    background: #f3f4f6;
+}
+
+.builder-table td.builder-num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+.builder-pieces {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.2rem;
+}
+
+.builder-piece {
+    border: 1px solid #000000;
+    background: #f9fafb;
+    padding: 0 0.25rem;
+    font: 400 0.66rem/1.5 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    overflow-wrap: anywhere;
+}
+
+.builder-encode {
+    margin: 0.7rem 0;
+}
+
+@media (max-width: 1100px) {
+    .builder-controls {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .builder-layout {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+@media (max-width: 639px) {
+    .builder-controls {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .builder-metrics {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .builder-table {
+        overflow-x: auto;
+    }
+}
