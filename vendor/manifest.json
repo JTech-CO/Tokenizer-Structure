@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "1.0.0",
+  "package": "@huggingface/transformers",
+  "version": "3.8.1",
+  "source": "https://registry.npmjs.org/@huggingface/transformers/-/transformers-3.8.1.tgz",
+  "packageIntegrity": "sha512-tsTk4zVjImqdqjS8/AOZg2yNLd1z9S5v+7oUPpXaasDRwEDhB+xnglK1k5cad26lL5/ZIaeREgWWy0bs9y9pPA==",
+  "usage": "tokenizer-only",
+  "verifiedAt": "2026-08-24",
+  "files": [
+    {
+      "path": "huggingface-transformers-3.8.1.min.js",
+      "sha256": "aa5002b70e789798da263f5f99c62bd3e8fcd0c119258a493c40c180648365fa"
+    },
+    {
+      "path": "HUGGINGFACE-TRANSFORMERS-LICENSE",
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+    }
+  ]
+}

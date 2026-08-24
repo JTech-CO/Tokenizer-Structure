@@ -44,11 +44,11 @@ test("every static el('id') reference exists in the main HTML", () => {
     }
 });
 
-test('tokenizer artifacts are pinned to immutable commit revisions', () => {
+test('tokenizer engine imports and re-exports the separate artifact catalog', () => {
     const tokenizer = readFileSync(resolve(root, 'js', 'tokenizer.js'), 'utf8');
-    const revisions = [...tokenizer.matchAll(/revision:\s*'([0-9a-f]{40})'/g)].map((match) => match[1]);
-    assert.equal(revisions.length, 6);
-    assert.equal(new Set(revisions).size, 6);
+    assert.match(tokenizer, /import\s*\{\s*MODELS\s*\}\s*from\s*['"]\.\/artifacts\.js['"]/);
+    assert.match(tokenizer, /export\s*\{\s*MODELS\s*\}\s*from\s*['"]\.\/artifacts\.js['"]/);
+    assert.doesNotMatch(tokenizer, /revision:\s*'[0-9a-f]{40}'/);
 });
 
 test('tokenizer imports both byte display helpers it calls locally', () => {

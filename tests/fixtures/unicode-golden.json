@@ -1,0 +1,59 @@
+{
+  "schemaVersion": "1.0.0",
+  "cases": [
+    {
+      "id": "hangul-nfc",
+      "input": "한글",
+      "nfc": "한글",
+      "metrics": { "utf16CodeUnits": 2, "codePoints": 2, "graphemes": 2, "utf8Bytes": 6 }
+    },
+    {
+      "id": "hangul-nfd",
+      "input": "한글",
+      "nfc": "한글",
+      "metrics": { "utf16CodeUnits": 6, "codePoints": 6, "graphemes": 2, "utf8Bytes": 18 }
+    },
+    {
+      "id": "combining-mark",
+      "input": "é",
+      "nfc": "é",
+      "metrics": { "utf16CodeUnits": 2, "codePoints": 2, "graphemes": 1, "utf8Bytes": 3 }
+    },
+    {
+      "id": "emoji-zwj-skin-tone",
+      "input": "👩🏽‍💻",
+      "nfc": "👩🏽‍💻",
+      "metrics": { "utf16CodeUnits": 7, "codePoints": 4, "graphemes": 1, "utf8Bytes": 15 }
+    },
+    {
+      "id": "regional-indicator-flag",
+      "input": "🇰🇷",
+      "nfc": "🇰🇷",
+      "metrics": { "utf16CodeUnits": 4, "codePoints": 2, "graphemes": 1, "utf8Bytes": 8 }
+    },
+    {
+      "id": "rtl-arabic",
+      "input": "مرحبا",
+      "nfc": "مرحبا",
+      "metrics": { "utf16CodeUnits": 5, "codePoints": 5, "graphemes": 5, "utf8Bytes": 10 }
+    },
+    {
+      "id": "crlf",
+      "input": "a\r\nb",
+      "nfc": "a\r\nb",
+      "metrics": { "utf16CodeUnits": 4, "codePoints": 4, "graphemes": 3, "utf8Bytes": 4 }
+    },
+    {
+      "id": "repeated-text",
+      "input": "토큰 토큰",
+      "nfc": "토큰 토큰",
+      "metrics": { "utf16CodeUnits": 5, "codePoints": 5, "graphemes": 5, "utf8Bytes": 13 }
+    },
+    {
+      "id": "tokenizer-marker-lookalikes",
+      "input": "ĠĊ▁",
+      "nfc": "ĠĊ▁",
+      "metrics": { "utf16CodeUnits": 3, "codePoints": 3, "graphemes": 3, "utf8Bytes": 7 }
+    }
+  ]
+}

@@ -100,7 +100,7 @@ export async function ensureTokenizer() {
 export function render(result) {
     state.lastResult = result;
     const L = i18n[state.lang];
-    const input = el('inputText').value;
+    const input = result.input.text;
 
     const step1Box = el('step1Output');
     const step2Box = el('step2Output');
@@ -173,9 +173,8 @@ export function render(result) {
 function renderEfficiency(result) {
     const L = i18n[state.lang];
     const box = el('efficiencyOutput');
-    const text = el('inputText').value;
-    const chars = [...text].length;
-    const bytes = new TextEncoder().encode(text).length;
+    const chars = result.input.codePointLength;
+    const bytes = result.input.utf8ByteLength;
     const tokens = result.pieces.length;
     const total = result.ids.length;
     const cpt = tokens ? chars / tokens : 0;
@@ -266,10 +265,18 @@ export function processText() {
         } catch (e) {
             console.warn('Real tokenization failed, heuristic fallback:', e);
             setEngineStatus('fallback');
-            result = tokenizeHeuristic(input);
+            result = tokenizeHeuristic(input, state.currentModelId, {
+                code: 'tokenizer-execution-failed',
+                message: e instanceof Error ? e.message : 'Tokenizer execution failed.',
+            });
         }
     } else {
-        result = tokenizeHeuristic(input);
+        result = tokenizeHeuristic(input, state.currentModelId, {
+            code: state.loading ? 'tokenizer-loading' : 'tokenizer-not-loaded',
+            message: state.loading
+                ? 'The requested tokenizer is still loading.'
+                : 'The requested tokenizer has not been loaded.',
+        });
     }
     render(result);
 }

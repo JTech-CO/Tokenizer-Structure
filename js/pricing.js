@@ -9,6 +9,30 @@
 
 export const PRICING_AS_OF = '2026-08-24';
 
+export const PRICING_SOURCES = Object.freeze({
+  OpenAI: Object.freeze({
+    url: 'https://developers.openai.com/api/docs/models',
+    verifiedAt: PRICING_AS_OF,
+  }),
+  Google: Object.freeze({
+    url: 'https://ai.google.dev/gemini-api/docs/pricing',
+    verifiedAt: PRICING_AS_OF,
+  }),
+  Anthropic: Object.freeze({
+    url: 'https://platform.claude.com/docs/en/about-claude/pricing',
+    verifiedAt: PRICING_AS_OF,
+  }),
+});
+
+// API 가격과 tokenizer artifact는 별도 카탈로그다. 이 메타데이터는 단가
+// 출처만 설명하며 특정 API 모델과 로컬 artifact의 동등성을 주장하지 않는다.
+export const PRICING_CATALOG = Object.freeze({
+  schemaVersion: '1.0.0',
+  kind: 'provider-pricing',
+  verifiedAt: PRICING_AS_OF,
+  countSemantics: 'rate-only-no-tokenizer-equivalence',
+  sources: PRICING_SOURCES,
+});
 export const PRICING = [
   // ── OpenAI API ──
   { provider: 'OpenAI', name: 'GPT-5.6 Sol',    id: 'gpt-5.6-sol',    input: 4.00,  output: 20.00, context: 1_050_000, guaranteedThrough: '2026-11-21', tiered: { threshold: 272_000, input: 8.00, output: 30.00 } },

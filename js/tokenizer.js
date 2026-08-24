@@ -1,55 +1,61 @@
 // tokenizer.js — 실제 토크나이저 엔진 (Transformers.js v3) + 휴리스틱 폴백
 // v3.8.1 고정: 이 시뮬레이터가 사용하는 컴포넌트 접근 API와의 호환성을 유지한다.
-import { AutoTokenizer, env } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1';
+import { AutoTokenizer, env } from '../vendor/huggingface-transformers-3.8.1.min.js';
+import { MODELS } from './artifacts.js';
+import { createAnalysisRequest, createAnalysisResult } from './analysisContract.js';
 import { displaySurface, displaySurfaces, labelByteContinuations } from './byteDisplay.js';
+export { MODELS } from './artifacts.js';
 export { byteLevelBytes, byteLevelToText, displaySurface, displaySurfaces, labelByteContinuations } from './byteDisplay.js';
 
 // 원격 전용(브라우저): 로컬 모델 경로 탐색 비활성화 + 브라우저 캐시 사용
 env.allowLocalModels = false;
 env.useBrowserCache = true;
 
-// 모델 카탈로그 — 드롭다운에 노출
-// in-browser 로드 검증(HF Hub file-list 확인, ungated, tokenizer.json 보유, 2026-08-24 기준).
-// 공식 meta-llama/* · google/gemma* 는 gated라 익명 브라우저 fetch 시 401 → onnx-community/*(또는 Xenova/*) 미러 사용.
-// Qwen3.5: v3.8.1에서 base tokenizer 클래스로 호환 로드되는 공개 ONNX 미러 사용.
-// Llama 4: gated meta-llama/* 대신 Xenova/llama4-tokenizer(토크나이저 전용, ungated) 사용.
-// 최신 모델명만으로 토크나이저 공유를 추정하지 않으며, 익명 브라우저에서 검증된 artifact만 목록에 포함한다.
-// context: 선택한 공개 artifact가 대표하는 구체 모델의 컨텍스트 윈도우(토큰).
-export const MODELS = [
-    {
-        id: 'Xenova/gpt-4o',
-        revision: '7956d98f2a83b2751a98ea7136fdf7fe6cf54e69',
-        label: 'GPT-4o (o200k)', family: 'BPE · byte-level', context: 128_000,
-    },
-    {
-        id: 'onnx-community/Qwen3.5-0.8B-ONNX',
-        revision: 'c0d619322dad7c4441a8841a53fc59772ddddcc0',
-        label: 'Qwen3.5 0.8B', family: 'BPE · byte-level', context: 262_144,
-    },
-    {
-        id: 'Xenova/llama4-tokenizer',
-        revision: '2cac0ef8980927774181b5fdc77d539b25cde31f',
-        label: 'Llama 4 Scout tokenizer', family: 'BPE · byte-level', context: 10_000_000,
-    },
-    {
-        id: 'onnx-community/gemma-3-1b-it-ONNX',
-        revision: 'a58439f40017d3b99c7d378ff525e54e0ba08ebf',
-        label: 'Gemma 3 1B', family: 'SentencePiece', context: 32_768,
-    },
-    {
-        id: 'deepseek-ai/DeepSeek-V3',
-        revision: 'e815299b0bcbac849fa540c768ef21845365c9eb',
-        label: 'DeepSeek-V3', family: 'BPE · byte-level', context: 131_072,
-    },
-    {
-        id: 'Xenova/bert-base-multilingual-cased',
-        revision: '17016e764a76e30ed904bc251df4510f27b7f23f',
-        label: 'BERT multilingual', family: 'WordPiece', context: 512,
-    },
-];
-
 const _cache = new Map();
 const _pending = new Map();
+let _analysisSequence = 0;
+
+const TOKENIZER_RUNTIME = Object.freeze({
+    name: '@huggingface/transformers',
+    version: '3.8.1',
+});
+
+const TOKENIZER_ADAPTER = Object.freeze({
+    name: 'tokenizer-structure/transformers-v3-adapter',
+    version: '1.0.0',
+});
+
+function finalizeAnalysisResult(tokenizerResult, text, requestedModelId, fallbackReason = null) {
+    const request = createAnalysisRequest({
+        requestId: 'analysis-' + (++_analysisSequence),
+        modelId: requestedModelId,
+        text,
+        options: { addSpecialTokens: true },
+    });
+    const provenance = tokenizerResult.engine === 'real'
+        ? {
+              adapter: TOKENIZER_ADAPTER,
+              runtime: TOKENIZER_RUNTIME,
+              artifact: {
+                  id: tokenizerResult.modelId,
+                  revision: tokenizerResult.revision,
+              },
+          }
+        : undefined;
+    const normalizedFallback = tokenizerResult.engine === 'heuristic' && requestedModelId
+        ? fallbackReason || {
+              code: 'tokenizer-unavailable',
+              message: 'The requested tokenizer artifact is not available.',
+          }
+        : fallbackReason;
+
+    return createAnalysisResult({
+        request,
+        tokenizerResult,
+        provenance,
+        fallbackReason: normalizedFallback,
+    });
+}
 
 // 토크나이저 로드(캐시). onProgress(frac0to1, raw) 콜백 옵션
 export async function loadTokenizer(modelId, onProgress) {
@@ -61,6 +67,7 @@ export async function loadTokenizer(modelId, onProgress) {
     }
 
     const model = MODELS.find((entry) => entry.id === modelId);
+    if (!model) throw new Error('Unknown tokenizer artifact: ' + modelId);
     const request = AutoTokenizer.from_pretrained(modelId, {
         revision: model ? model.revision : 'main',
         progress_callback: onProgress
@@ -189,7 +196,19 @@ export function tokenizeReal(tok, text) {
         };
     });
 
-    return { engine: 'real', modelId: tok.__modelId, normalized, preTokens, subwords, finalTokens, ids, pieces, preDisplay, finDisplay };
+    return finalizeAnalysisResult({
+        engine: 'real',
+        modelId: tok.__modelId,
+        revision: tok.__revision,
+        normalized,
+        preTokens,
+        subwords,
+        finalTokens,
+        ids,
+        pieces,
+        preDisplay,
+        finDisplay,
+    }, text, tok.__modelId);
 }
 
 // ---- 휴리스틱 폴백 (네트워크/로드 실패 시 앱이 죽지 않도록 유지) ----
@@ -204,7 +223,7 @@ function _heuristicId(token) {
     return (Math.abs(hash) % 99000) + 1000;
 }
 
-export function tokenizeHeuristic(text) {
+export function tokenizeHeuristic(text, requestedModelId = null, fallbackReason = null) {
     // 1. Normalization
     const normalized = text.normalize('NFC');
 
@@ -254,17 +273,36 @@ export function tokenizeHeuristic(text) {
         return { token: sw, surface: s, display: s, continuation: false, len: [...s].length };
     });
 
-    return { engine: 'heuristic', modelId: null, normalized, preTokens, subwords, finalTokens, ids, pieces, preDisplay, finDisplay };
+    return finalizeAnalysisResult({
+        engine: 'heuristic',
+        modelId: null,
+        normalized,
+        preTokens,
+        subwords,
+        finalTokens,
+        ids,
+        pieces,
+        preDisplay,
+        finDisplay,
+    }, text, requestedModelId, fallbackReason);
 }
 
 // 토크나이저가 있으면 실제 토큰화, 없으면 휴리스틱 (앱 공용 폴백 래퍼)
-export function tokenizeWith(tok, input) {
+export function tokenizeWith(tok, input, requestedModelId = null) {
     if (tok) {
         try {
             return tokenizeReal(tok, input);
-        } catch (e) {
-            return tokenizeHeuristic(input);
+        } catch (error) {
+            return tokenizeHeuristic(input, tok.__modelId || requestedModelId, {
+                code: 'tokenizer-execution-failed',
+                message: error instanceof Error ? error.message : 'Tokenizer execution failed.',
+            });
         }
     }
-    return tokenizeHeuristic(input);
+    return tokenizeHeuristic(input, requestedModelId, requestedModelId
+        ? {
+              code: 'tokenizer-not-loaded',
+              message: 'The requested tokenizer has not been loaded.',
+          }
+        : null);
 }

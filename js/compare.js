@@ -87,7 +87,7 @@ function renderCompareSide(side, result) {
     sub.innerHTML = '';
     result.pieces.forEach((pc) => sub.appendChild(createTokenBadge(pc.display, pc.token, false)));
     ids.textContent = `[ ${result.ids.join(', ')} ]`;
-    const chars = [...el('inputText').value].length;
+    const chars = result.input.codePointLength;
     const tokens = result.pieces.length;
     const total = result.ids.length;
     const cpt = tokens ? chars / tokens : 0;
