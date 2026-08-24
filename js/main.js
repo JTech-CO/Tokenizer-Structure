@@ -11,6 +11,60 @@ import { ensureMatrix } from './matrix.js';
 import { openCostModal, closeCostModal, handleCostModalKeydown, setCostSort } from './costModal.js';
 import { buildPresets } from './presets.js';
 import { setupHoverSync } from './hover.js';
+import { MODELS } from './tokenizer.js';
+import { normalizeAnalysisOptions } from './analysisOptions.js';
+import { syncInputEditorScroll, updateInputEditor } from './inputEditor.js';
+import {
+    applyInspectorLanguage, initInspector, renderInspector, restoreInspectorShare,
+    syncInspectorControls,
+} from './inspectorView.js';
+import { applyLearnLanguage, initLearn, renderLearn } from './learnView.js';
+
+const VIEW_NAMES = new Set(['pipeline', 'compare', 'matrix', 'inspector', 'learn']);
+const LENS_NAMES = new Set(['spaces', 'nfc', 'nfd', 'case', 'emoji', 'code-indentation']);
+const LESSON_NAMES = new Set(['token-not-word', 'korean-emoji-utf8', 'same-text-different-tokenizers']);
+
+function restoreSharedState() {
+    try {
+        const restored = restoreInspectorShare(window.location.search);
+        if (!restored) return;
+        const shared = restored.state;
+        if (typeof shared.modelId === 'string' && MODELS.some((model) => model.id === shared.modelId)) {
+            state.currentModelId = shared.modelId;
+        }
+        if (typeof shared.view === 'string' && VIEW_NAMES.has(shared.view)) state.currentView = shared.view;
+        if (shared.lang === 'ko' || shared.lang === 'en') state.lang = shared.lang;
+        if (typeof shared.lens === 'string' && LENS_NAMES.has(shared.lens)) state.inspectorLens = shared.lens;
+        if (typeof shared.lessonId === 'string' && LESSON_NAMES.has(shared.lessonId)) {
+            state.learnLessonId = shared.lessonId;
+        }
+        if (shared.level === 'beginner' || shared.level === 'technical') {
+            state.explanationLevel = shared.level;
+        }
+        if (shared.options !== undefined) state.analysisOptions = normalizeAnalysisOptions(shared.options);
+        if (restored.includesInput && typeof shared.text === 'string') el('inputText').value = shared.text;
+    } catch (error) {
+        console.warn('Ignored invalid Inspector share state:', error);
+    }
+}
+
+function analyzeActiveView() {
+    const inputStatus = updateInputEditor(state.lang);
+    const result = processText();
+    if (state.currentView === 'inspector') renderInspector(result);
+    if (state.currentView === 'learn') renderLearn();
+    return { inputStatus, result };
+}
+
+function openLessonSample(sample) {
+    el('inputText').value = sample.input;
+    updateInputEditor(state.lang);
+    if (sample.interactionKind === 'artifact-comparison') switchView('compare');
+    else {
+        if (sample.interactionKind === 'unicode-metrics') state.inspectorLens = 'nfd';
+        switchView('inspector');
+    }
+}
 
 // 현재 언어 기준 정적 UI 텍스트 적용
 function applyLang() {
@@ -57,6 +111,9 @@ function applyLang() {
     el('animToggleWrap').title = L.animTitle;
     el('costModalClose').title = L.closeLabel;
     el('costModalClose').setAttribute('aria-label', L.closeLabel);
+    applyInspectorLanguage();
+    applyLearnLanguage();
+    updateInputEditor(state.lang);
     buildCostSelect();
     buildPresets(onInput);
 }
@@ -81,17 +138,21 @@ function toggleLang() {
         renderCompare();
     } else if (state.currentView === 'matrix') {
         ensureMatrix();
+    } else if (state.currentView === 'inspector') {
+        renderInspector(state.lastResult);
+    } else if (state.currentView === 'learn') {
+        renderLearn();
     } else if (state.lastResult) {
         render(state.lastResult);
     } else {
-        processText();
+        analyzeActiveView();
     }
 }
 
 async function onModelChange() {
     state.currentModelId = el('modelSelect').value;
     await ensureTokenizer();
-    processText();
+    analyzeActiveView();
 }
 
 function onHeatmapToggle() {
@@ -112,9 +173,9 @@ function onCostModelChange() {
 }
 
 function switchView(name) {
-    if (name === 'matrix' && !el('matrixView')) return;
+    if (!VIEW_NAMES.has(name) || !el(name + 'View')) return;
     state.currentView = name;
-    ['pipeline', 'compare', 'matrix'].forEach((v) => {
+    [...VIEW_NAMES].forEach((v) => {
         const node = el(v + 'View');
         if (node) {
             const isHidden = v !== name;
@@ -122,9 +183,9 @@ function switchView(name) {
             node.classList.toggle('hidden', isHidden);
         }
     });
-    el('pipelineControls').classList.toggle('hidden', name !== 'pipeline');
+    el('pipelineControls').classList.toggle('hidden', !['pipeline', 'inspector', 'learn'].includes(name));
     el('inputRow').classList.toggle('hidden', name === 'matrix');
-    el('presetBtns').classList.toggle('hidden', name === 'matrix');
+    el('presetBtns').classList.toggle('hidden', name === 'matrix' || name === 'learn');
     document.querySelectorAll('.view-tab[data-view]').forEach((b) => {
         const active = b.dataset.view === name;
         b.classList.toggle('is-active', active);
@@ -137,6 +198,8 @@ function switchView(name) {
     }
     if (name === 'compare') ensureCompare();
     if (name === 'matrix') ensureMatrix();
+    if (name === 'inspector') analyzeActiveView();
+    if (name === 'learn') { processText(); renderLearn(); }
 }
 
 function onViewTabKeydown(event) {
@@ -155,17 +218,28 @@ function onViewTabKeydown(event) {
 }
 
 function onInput() {
+    const status = updateInputEditor(state.lang);
+    if (!status.accepted) {
+        processText();
+        if (state.currentView === 'inspector') renderInspector(null);
+        if (state.currentView === 'learn') renderLearn();
+        return;
+    }
     if (state.currentView === 'compare') renderCompare();
     else if (state.currentView === 'pipeline') processText();
+    else if (state.currentView === 'inspector') analyzeActiveView();
+    else if (state.currentView === 'learn') { processText(); renderLearn(); }
 }
 
 async function init() {
+    restoreSharedState();
     buildModelSelect();
     buildCostSelect();
     buildCmpSelects();
     el('modelSelect').addEventListener('change', onModelChange);
     el('langToggleBtn').addEventListener('click', toggleLang);
     el('inputText').addEventListener('input', onInput);
+    el('inputText').addEventListener('scroll', syncInputEditorScroll);
     el('heatmapToggle').addEventListener('change', onHeatmapToggle);
     el('animToggle').addEventListener('change', onAnimToggle);
     el('costModelSelect').addEventListener('change', onCostModelChange);
@@ -183,11 +257,17 @@ async function init() {
     );
     document.addEventListener('keydown', handleCostModalKeydown);
     setupHoverSync();
+    initInspector({ reanalyze: analyzeActiveView });
+    initLearn({ openSample: openLessonSample });
 
     applyLang();
-    processText();           // 로드 전 즉시 1차 렌더(휴리스틱)
+    syncInspectorControls();
+    updateInputEditor(state.lang);
+    switchView(state.currentView); // 로드 전 즉시 1차 렌더(휴리스틱)
     await ensureTokenizer();  // 실제 토크나이저 로드
-    processText();           // 실제 엔진으로 재렌더
+    if (state.currentView === 'compare') renderCompare();
+    else if (state.currentView === 'matrix') ensureMatrix();
+    else analyzeActiveView(); // 실제 엔진으로 재렌더
 }
 
 window.addEventListener('DOMContentLoaded', init);

@@ -70,9 +70,22 @@ test('artifact capabilities and operational claims are explicit', () => {
             postProcessor: 'encode-only',
         });
         assert.equal(entry.capabilities.offsetLevel, 'none');
-        for (const name of ['chatTemplate', 'textPair', 'padding', 'truncation', 'decode']) {
-            assert.equal(entry.capabilities[name], 'unknown');
-        }
+        assert.deepEqual(entry.capabilities, {
+            stageAccess: entry.capabilities.stageAccess,
+            offsetLevel: 'none',
+            chatTemplate: 'unknown',
+            textPair: 'runtime-contract',
+            padding: 'runtime-conditional',
+            paddingSide: 'runtime-property',
+            truncation: 'runtime-contract',
+            stride: 'unsupported-runtime-contract',
+            decode: 'runtime-contract',
+            attentionMask: 'runtime-call',
+            tokenTypeIds: 'runtime-conditional',
+            specialTokenMask: 'derived-special-id-set',
+            sequenceIds: 'runtime-not-exposed',
+            wordIds: 'runtime-not-exposed',
+        });
         assert.deepEqual(entry.operations, {
             anonymousBrowserLoad: 'verified',
             cors: 'verified',

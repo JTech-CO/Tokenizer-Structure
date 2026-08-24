@@ -16,14 +16,21 @@ const STAGE_ACCESS = Object.freeze({
     postProcessor: 'encode-only',
 });
 
-const UNVERIFIED_CAPABILITIES = Object.freeze({
+const RUNTIME_CAPABILITIES = Object.freeze({
     stageAccess: STAGE_ACCESS,
     offsetLevel: 'none',
     chatTemplate: 'unknown',
-    textPair: 'unknown',
-    padding: 'unknown',
-    truncation: 'unknown',
-    decode: 'unknown',
+    textPair: 'runtime-contract',
+    padding: 'runtime-conditional',
+    paddingSide: 'runtime-property',
+    truncation: 'runtime-contract',
+    stride: 'unsupported-runtime-contract',
+    decode: 'runtime-contract',
+    attentionMask: 'runtime-call',
+    tokenTypeIds: 'runtime-conditional',
+    specialTokenMask: 'derived-special-id-set',
+    sequenceIds: 'runtime-not-exposed',
+    wordIds: 'runtime-not-exposed',
 });
 
 function artifact({ licenseIdentifier, tokenizerAssetBytes, ...entry }) {
@@ -50,7 +57,7 @@ function artifact({ licenseIdentifier, tokenizerAssetBytes, ...entry }) {
         verifiedAt: ARTIFACTS_VERIFIED_AT,
         engineCompatibility: TOKENIZER_ENGINE_COMPATIBILITY,
         license,
-        capabilities: UNVERIFIED_CAPABILITIES,
+        capabilities: RUNTIME_CAPABILITIES,
         operations: Object.freeze({
             anonymousBrowserLoad: 'verified',
             cors: 'verified',

@@ -92,8 +92,17 @@ function heuristicTokenizerResult(overrides = {}) {
     };
 }
 
-test('analysis request is versioned, JSON-safe, and accepts current flat UI input', () => {
-    const options = { addSpecialTokens: true, nested: { mode: 'inspect' } };
+test('analysis request is versioned, JSON-safe, and canonicalizes P1 options', () => {
+    const options = { addSpecialTokens: false, truncation: true, maxLength: 32 };
+    const canonicalOptions = {
+        addSpecialTokens: false,
+        textPair: null,
+        padding: 'none',
+        paddingSide: 'runtime',
+        truncation: true,
+        maxLength: 32,
+        stride: 0,
+    };
     const request = createAnalysisRequest({
         requestId: 'pipeline-1',
         modelId: MODEL_ID,
@@ -107,14 +116,14 @@ test('analysis request is versioned, JSON-safe, and accepts current flat UI inpu
         requestId: 'pipeline-1',
         modelId: MODEL_ID,
         text: 'A🤗',
-        options,
+        options: canonicalOptions,
     });
     assert.notEqual(request.options, options);
     assert.equal(validateAnalysisRequest(request), true);
     assert.deepEqual(JSON.parse(JSON.stringify(request)), request);
 });
 
-test('analysis request rejects invalid and non-JSON input before tokenization', () => {
+test('analysis request rejects invalid and unsupported option input before tokenization', () => {
     assert.throws(
         () => createAnalysisRequest({ requestId: '', modelId: MODEL_ID, text: 'x' }),
         /requestId/,
@@ -128,9 +137,9 @@ test('analysis request rejects invalid and non-JSON input before tokenization', 
             requestId: '1',
             modelId: MODEL_ID,
             text: 'x',
-            options: { temperature: Number.NaN },
+            options: { maxLength: Number.NaN },
         }),
-        /finite/,
+        /integer/,
     );
 
     const cyclic = {};
@@ -142,7 +151,7 @@ test('analysis request rejects invalid and non-JSON input before tokenization', 
             text: 'x',
             options: cyclic,
         }),
-        /cyclic/,
+        /unknown field/,
     );
 });
 

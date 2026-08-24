@@ -1,5 +1,6 @@
 // state.js — 모듈 간 공유 상태 (객체 참조로 live 공유)
 import { MODELS } from './tokenizer.js';
+import { DEFAULT_ANALYSIS_OPTIONS } from './analysisOptions.js';
 
 export const state = {
     lang: 'ko',                            // 현재 UI 언어 (ko | en)
@@ -10,7 +11,11 @@ export const state = {
     animOn: false,                         // 단계 순차 애니메이션
     costModelId: 'gpt-4o',                 // footer 비용 추정 대상 모델(기본 토크나이저와 동일 계열)
     lastResult: null,                      // 마지막 토크나이즈 결과(부분 재렌더용)
-    currentView: 'pipeline',               // pipeline | compare | matrix
+    currentView: 'pipeline',               // pipeline | compare | matrix | inspector | learn
+    analysisOptions: { ...DEFAULT_ANALYSIS_OPTIONS }, // P1 canonical tokenizer options
+    inspectorLens: 'nfd',                  // Unicode A/B lens
+    learnLessonId: 'token-not-word',       // active five-minute path
+    explanationLevel: 'beginner',          // beginner | technical
     cmpModelA: 'Xenova/gpt-4o',            // 비교 뷰 좌측 모델
     cmpModelB: 'onnx-community/gemma-3-1b-it-ONNX', // 비교 뷰 우측 모델
     cmpTokA: null,

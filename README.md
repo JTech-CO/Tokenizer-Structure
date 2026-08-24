@@ -19,8 +19,11 @@
 - **분석 지표**: Unicode code point/token, UTF-8 byte/token, 컨텍스트 게이지, 토큰 히트맵
 - **비교 도구**: 2열 tokenizer 비교, 입력 샘플 매트릭스, 수록 API 모델의 표준 입력 단가 환산
 - **상호작용**: 토큰 조각 연동, 프리셋, 한국어/영어, 반응형 화면, 키보드 탐색
+- **Inspector**: text pair·padding·truncation 옵션, token/mask/source 상세, roundtrip 분류, Unicode A/B 렌즈
+- **재현 가능한 결과**: versioned JSON/CSV export, 클립보드 복사, 원문을 기본 제외하는 URL 상태 공유
+- **Learn**: 세 개의 5분 경로, 6단계 학습 루프, 4문항 퀴즈, 용어집, 초급/기술 설명
 
-## 2. P0 신뢰 기반
+## 2. P0/P1 신뢰·분석 기반
 
 2026-08-24에 Contract & Reliability P0를 완료했습니다.
 
@@ -35,6 +38,19 @@
 - actual Chrome에서 real tokenizer, 입력 변경, 모달·언어 전환, 320px layout, console/network 오류를 smoke 검증
 
 세부 결과는 [P0 검증 기록](docs/P0-VALIDATION.md), offset과 v4 결정은 [ADR 0001](docs/adr/0001-p0-contract-runtime-and-offsets.md), 후속 우선순위는 [ROADMAP](ROADMAP.md)을 참고하세요.
+
+같은 날 Inspector & Learn P1 기능 구현도 완료했습니다.
+
+- `AnalysisRequest`/`AnalysisResult` v2와 UI·adapter·export/share가 공유하는 canonical 옵션
+- 줄 번호·code point·UTF-8 byte 제한이 있는 다중행 편집기와 token/encoding 상세
+- add special token, text pair, artifact 조건부 padding, padding side, truncation, max length 옵션
+- encode → decode 분류, 원문/정규화 diff, 6개 Unicode A/B 렌즈
+- versioned JSON/CSV/clipboard export와 원문을 기본 제외하는 URL 공유·복원
+- 세 개의 5분 Learn 경로, ko/en·초급/기술 설명, 4문항 퀴즈, 용어집
+- versioned Worker load/analyze/dispose/cancel 프로토콜, stale 억제, retry/cancel, 2-entry LRU
+- Node 결정론적 회귀 테스트 80개와 actual Chrome P1 통합 smoke 통과
+
+기능 구현 근거와 지원 경계는 [P1 검증 기록](docs/P1-VALIDATION.md)에 있습니다. 목표 사용자 80% 사용성, Firefox/WebKit, axe는 기능 구현과 구분해 남은 릴리스 gate로 관리합니다.
 
 ## 3. 기술 스택 (Tech Stack)
 
@@ -80,7 +96,7 @@
    npm test
    ```
 
-   외부 패키지 설치 없이 Node.js 기본 test runner로 40개 테스트를 실행합니다.
+   외부 패키지 설치 없이 Node.js 기본 test runner로 80개 테스트를 실행합니다.
 
 GitHub Pages는 저장소를 `main` / `(root)`로 지정하면 `https://<user>.github.io/<repo>/`에서 build 없이 동작합니다.
 
@@ -95,12 +111,23 @@ tokenizer-structure/
 │   ├── base.css
 │   ├── controls.css
 │   ├── analysis.css
-│   └── views.css
+│   ├── views.css
+│   └── p1.css                   # Inspector/Learn/editor 반응형 UI
 ├── js/
-│   ├── analysisContract.js       # AnalysisRequest/Result v1, capability, evidence, provenance
+│   ├── analysisContract.js       # AnalysisRequest/Result v2, encoding, roundtrip, provenance
+│   ├── analysisOptions.js        # UI/adapter/export/share canonical tokenizer options
 │   ├── artifacts.js              # pinned tokenizer artifact registry
 │   ├── unicodeMetrics.js         # UTF-16/code point/grapheme/UTF-8 metrics
 │   ├── tokenizer.js              # Transformers.js adapter + explicit heuristic fallback
+│   ├── inspectorDomain.js        # input/lens/diff/export/share pure domain
+│   ├── inspectorView.js          # Inspector UI
+│   ├── inputEditor.js            # line numbers, limits, input metrics
+│   ├── lessons.js                # versioned Learn content and scoring
+│   ├── learnView.js              # Learn UI
+│   ├── workerProtocol.js         # versioned Worker messages + tokenizer LRU
+│   ├── tokenizerWorker.js        # Worker runtime
+│   ├── tokenizerWorkerClient.js  # stale/retry/cancel-aware client
+│   ├── tokenizerWorkerEntry.js   # executable Transformers.js Worker entry
 │   ├── byteDisplay.js
 │   ├── pricing.js                # independent API pricing catalog/source registry
 │   ├── pipeline.js
@@ -127,9 +154,15 @@ tokenizer-structure/
 │   ├── security.test.js
 │   ├── unicodeMetrics.test.js
 │   ├── core.test.js
-│   └── static.test.js
+│   ├── static.test.js
+│   ├── analysisOptions.test.js
+│   ├── inspectorDomain.test.js
+│   ├── lessons.test.js
+│   ├── tokenizerP1.test.js
+│   └── workerProtocol.test.js
 ├── docs/
 │   ├── P0-VALIDATION.md
+│   ├── P1-VALIDATION.md
 │   └── adr/0001-p0-contract-runtime-and-offsets.md
 ├── package.json
 ├── ROADMAP.md

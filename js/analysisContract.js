@@ -2,8 +2,9 @@
 // This module only depends on the pure Unicode metrics helper so it can run in
 // browsers, workers, and Node-based tests.
 import { measureText } from './unicodeMetrics.js';
+import { normalizeAnalysisOptions } from './analysisOptions.js';
 
-export const ANALYSIS_SCHEMA_VERSION = 1;
+export const ANALYSIS_SCHEMA_VERSION = 2;
 
 export const ANALYSIS_TYPES = Object.freeze({
     REQUEST: 'analysis-request',
@@ -29,6 +30,22 @@ export const UNAVAILABLE_REASONS = Object.freeze({
     NOT_PROVIDED: 'not-provided',
     UNSUPPORTED: 'unsupported',
 });
+
+export const ENCODING_DETAIL_NAMES = Object.freeze([
+    'attentionMask',
+    'tokenTypeIds',
+    'specialTokenMask',
+    'sequenceIds',
+    'wordIds',
+    'originalOffsets',
+    'normalizedOffsets',
+    'paddingSide',
+]);
+
+export const ROUNDTRIP_CLASSIFICATIONS = Object.freeze([
+    'lossless', 'normalization', 'unknown-token', 'special-token-removal',
+    'truncation', 'other', 'unavailable',
+]);
 
 export const CAPABILITY_NAMES = Object.freeze([
     'normalization',
@@ -521,7 +538,10 @@ export function validateAnalysisRequest(request) {
     nullableString(request.modelId, 'request.modelId');
     if (typeof request.text !== 'string') fail('request.text', 'expected a string');
     assertPlainObject(request.options, 'request.options');
-    cloneJsonValue(request.options, 'request.options');
+    const normalizedOptions = normalizeAnalysisOptions(request.options);
+    if (JSON.stringify(normalizedOptions) !== JSON.stringify(request.options)) {
+        fail('request.options', 'must use the canonical P1 option shape');
+    }
     return true;
 }
 
@@ -545,7 +565,7 @@ export function createAnalysisRequest(input) {
         requestId: nonEmptyString(input.requestId, 'input.requestId'),
         modelId: input.modelId === undefined ? null : nullableString(input.modelId, 'input.modelId'),
         text: typeof input.text === 'string' ? input.text : fail('input.text', 'expected a string'),
-        options: cloneJsonValue(input.options === undefined ? {} : input.options, 'input.options'),
+        options: normalizeAnalysisOptions(input.options),
     };
     assertPlainObject(request.options, 'request.options');
     validateAnalysisRequest(request);
@@ -581,21 +601,186 @@ function validateFallbackReason(fallbackReason, engine, requestedModelId) {
     }
 }
 
+function normalizeBinaryArray(value, path, tokenCount) {
+    const normalized = normalizeIds(value, path);
+    if (normalized.length !== tokenCount) fail(path, 'length must equal result.ids.length');
+    if (normalized.some((item) => item !== 0 && item !== 1)) fail(path, 'expected only 0 or 1');
+    return normalized;
+}
+
+function normalizeIntegerArray(value, path, tokenCount) {
+    const normalized = normalizeIds(value, path);
+    if (normalized.length !== tokenCount) fail(path, 'length must equal result.ids.length');
+    return normalized;
+}
+
+function normalizeOffsetArray(value, path, tokenCount) {
+    if (!Array.isArray(value)) fail(path, 'expected an array');
+    if (value.length !== tokenCount) fail(path, 'length must equal result.ids.length');
+    return value.map((span, index) => {
+        const itemPath = `${path}[${index}]`;
+        if (span === null) return null;
+        if (!Array.isArray(span) || span.length !== 2) fail(itemPath, 'expected [start, end] or null');
+        const [start, end] = span;
+        if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end) || start < 0 || end < start) {
+            fail(itemPath, 'expected a non-negative ordered span');
+        }
+        return [start, end];
+    });
+}
+
+function normalizeEncoding(value, tokenCount, engine) {
+    if (value === undefined) value = {};
+    assertPlainObject(value, 'encoding');
+    assertKnownKeys(value, ENCODING_DETAIL_NAMES, 'encoding');
+
+    const normalized = {
+        attentionMask: null,
+        tokenTypeIds: null,
+        specialTokenMask: null,
+        sequenceIds: null,
+        wordIds: null,
+        originalOffsets: null,
+        normalizedOffsets: null,
+        paddingSide: null,
+        availability: {},
+    };
+    const parsers = {
+        attentionMask: normalizeBinaryArray,
+        tokenTypeIds: normalizeIntegerArray,
+        specialTokenMask: normalizeBinaryArray,
+        sequenceIds: normalizeIntegerArray,
+        wordIds: normalizeIntegerArray,
+        originalOffsets: normalizeOffsetArray,
+        normalizedOffsets: normalizeOffsetArray,
+    };
+
+    for (const name of ENCODING_DETAIL_NAMES) {
+        const provided = hasOwn(value, name) && value[name] !== null;
+        if (provided) {
+            if (name === 'paddingSide') {
+                if (value[name] !== 'left' && value[name] !== 'right') {
+                    fail('encoding.paddingSide', 'expected left or right');
+                }
+                normalized[name] = value[name];
+            } else {
+                normalized[name] = parsers[name](value[name], `encoding.${name}`, tokenCount);
+            }
+        }
+        normalized.availability[name] = {
+            available: provided,
+            unavailableReason: provided
+                ? null
+                : engine === ANALYSIS_ENGINES.HEURISTIC
+                    ? UNAVAILABLE_REASONS.HEURISTIC_ENGINE
+                    : UNAVAILABLE_REASONS.RUNTIME_NOT_EXPOSED,
+        };
+    }
+    return normalized;
+}
+
+function validateEncoding(encoding, tokenCount, engine) {
+    assertPlainObject(encoding, 'result.encoding');
+    assertKnownKeys(encoding, [...ENCODING_DETAIL_NAMES, 'availability'], 'result.encoding');
+    assertPlainObject(encoding.availability, 'result.encoding.availability');
+    assertKnownKeys(encoding.availability, ENCODING_DETAIL_NAMES, 'result.encoding.availability');
+
+    const raw = {};
+    for (const name of ENCODING_DETAIL_NAMES) {
+        const claim = encoding.availability[name];
+        const path = `result.encoding.availability.${name}`;
+        assertPlainObject(claim, path);
+        assertKnownKeys(claim, ['available', 'unavailableReason'], path);
+        if (typeof claim.available !== 'boolean') fail(`${path}.available`, 'expected a boolean');
+        if (claim.available !== (encoding[name] !== null)) fail(path, 'must match the detail value');
+        if (claim.available) {
+            if (claim.unavailableReason !== null) fail(`${path}.unavailableReason`, 'must be null when available');
+            raw[name] = encoding[name];
+        } else {
+            if (!UNAVAILABLE_REASON_SET.has(claim.unavailableReason)) {
+                fail(`${path}.unavailableReason`, 'expected a documented unavailable reason');
+            }
+            const expectedReason = engine === ANALYSIS_ENGINES.HEURISTIC
+                ? UNAVAILABLE_REASONS.HEURISTIC_ENGINE
+                : UNAVAILABLE_REASONS.RUNTIME_NOT_EXPOSED;
+            if (claim.unavailableReason !== expectedReason) {
+                fail(`${path}.unavailableReason`, 'does not match the engine');
+            }
+        }
+    }
+    const canonical = normalizeEncoding(raw, tokenCount, engine);
+    if (JSON.stringify(canonical) !== JSON.stringify(encoding)) {
+        fail('result.encoding', 'must use the canonical encoding detail shape');
+    }
+}
+
+function normalizeRoundTrip(value, engine) {
+    if (value === undefined || value === null) {
+        return {
+            decoded: null,
+            decodedWithSpecialTokens: null,
+            classification: 'unavailable',
+            unavailableReason: engine === ANALYSIS_ENGINES.HEURISTIC
+                ? UNAVAILABLE_REASONS.HEURISTIC_ENGINE
+                : UNAVAILABLE_REASONS.RUNTIME_NOT_EXPOSED,
+        };
+    }
+    assertPlainObject(value, 'roundTrip');
+    assertKnownKeys(value, ['decoded', 'decodedWithSpecialTokens', 'classification', 'unavailableReason'], 'roundTrip');
+    if (hasOwn(value, 'unavailableReason') && value.unavailableReason !== null) {
+        fail('roundTrip.unavailableReason', 'must be null when decode is available');
+    }
+    if (typeof value.decoded !== 'string') fail('roundTrip.decoded', 'expected a string');
+    if (typeof value.decodedWithSpecialTokens !== 'string') {
+        fail('roundTrip.decodedWithSpecialTokens', 'expected a string');
+    }
+    if (!ROUNDTRIP_CLASSIFICATIONS.includes(value.classification) || value.classification === 'unavailable') {
+        fail('roundTrip.classification', 'expected an available classification');
+    }
+    return {
+        decoded: value.decoded,
+        decodedWithSpecialTokens: value.decodedWithSpecialTokens,
+        classification: value.classification,
+        unavailableReason: null,
+    };
+}
+
+function validateRoundTrip(roundTrip, engine) {
+    assertPlainObject(roundTrip, 'result.roundTrip');
+    assertKnownKeys(
+        roundTrip,
+        ['decoded', 'decodedWithSpecialTokens', 'classification', 'unavailableReason'],
+        'result.roundTrip',
+    );
+    const canonical = roundTrip.classification === 'unavailable'
+        ? normalizeRoundTrip(null, engine)
+        : normalizeRoundTrip(roundTrip, engine);
+    if (JSON.stringify(canonical) !== JSON.stringify(roundTrip)) {
+        fail('result.roundTrip', 'must use the canonical round-trip shape');
+    }
+}
+
 export function validateAnalysisResult(result) {
     assertPlainObject(result, 'result');
     assertKnownKeys(
         result,
         [
-            'schemaVersion', 'type', 'requestId', 'requestedModelId', 'modelId', 'engine',
+            'schemaVersion', 'type', 'requestId', 'createdAt', 'requestedModelId', 'modelId', 'engine',
             'input', 'options', 'normalized', 'preTokens', 'subwords', 'finalTokens', 'ids',
             'pieces', 'preDisplay', 'finDisplay', 'provenance', 'capabilities', 'evidence',
-            'warnings', 'fallbackReason',
+            'encoding', 'roundTrip', 'warnings', 'fallbackReason',
         ],
         'result',
     );
     if (result.schemaVersion !== ANALYSIS_SCHEMA_VERSION) fail('result.schemaVersion', 'unsupported version');
     if (result.type !== ANALYSIS_TYPES.RESULT) fail('result.type', 'expected analysis-result');
     nonEmptyString(result.requestId, 'result.requestId');
+    if (typeof result.createdAt !== 'string' || Number.isNaN(Date.parse(result.createdAt))) {
+        fail('result.createdAt', 'expected an ISO date string');
+    }
+    if (new Date(result.createdAt).toISOString() !== result.createdAt) {
+        fail('result.createdAt', 'must be a canonical ISO date string');
+    }
     const requestedModelId = nullableString(result.requestedModelId, 'result.requestedModelId');
     if (!ENGINE_SET.has(result.engine)) fail('result.engine', 'expected real or heuristic');
 
@@ -609,8 +794,9 @@ export function validateAnalysisResult(result) {
     }
 
     validateInputMetrics(result.input);
-    assertPlainObject(result.options, 'result.options');
-    cloneJsonValue(result.options, 'result.options');
+    if (JSON.stringify(normalizeAnalysisOptions(result.options)) !== JSON.stringify(result.options)) {
+        fail('result.options', 'must use the canonical P1 option shape');
+    }
     if (typeof result.normalized !== 'string') fail('result.normalized', 'expected a string');
 
     const preTokens = normalizeStringArray(result.preTokens, 'result.preTokens');
@@ -648,6 +834,8 @@ export function validateAnalysisResult(result) {
     validateProvenance(result.provenance, { engine: result.engine, modelId: result.modelId });
     validateCapabilities(result.capabilities);
     validateEvidence(result.evidence, { engine: result.engine, capabilities: result.capabilities });
+    validateEncoding(result.encoding, ids.length, result.engine);
+    validateRoundTrip(result.roundTrip, result.engine);
     validateWarnings(result.warnings);
     validateFallbackReason(result.fallbackReason, result.engine, requestedModelId);
 
@@ -664,6 +852,7 @@ export function createAnalysisResult({
     evidence = {},
     warnings = [],
     fallbackReason = null,
+    createdAt = new Date().toISOString(),
 }) {
     validateAnalysisRequest(request);
     assertPlainObject(tokenizerResult, 'tokenizerResult');
@@ -716,11 +905,12 @@ export function createAnalysisResult({
         schemaVersion: ANALYSIS_SCHEMA_VERSION,
         type: ANALYSIS_TYPES.RESULT,
         requestId: request.requestId,
+        createdAt,
         requestedModelId: request.modelId,
         modelId,
         engine,
         input: inputMetrics(request.text),
-        options: cloneJsonValue(request.options, 'request.options'),
+        options: normalizeAnalysisOptions(request.options),
         normalized: tokenizerResult.normalized,
         preTokens,
         subwords,
@@ -732,6 +922,8 @@ export function createAnalysisResult({
         provenance: normalizeProvenance(provenance, { engine, modelId }),
         capabilities: normalizedCapabilities,
         evidence: normalizedEvidence,
+        encoding: normalizeEncoding(tokenizerResult.encoding, ids.length, engine),
+        roundTrip: normalizeRoundTrip(tokenizerResult.roundTrip, engine),
         warnings: normalizeWarnings(warnings),
         fallbackReason: normalizedFallbackReason,
     };

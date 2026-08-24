@@ -5,6 +5,7 @@ import { state } from './state.js';
 import { MODELS, loadTokenizer, tokenizeReal, tokenizeHeuristic, isSpecialToken } from './tokenizer.js';
 import { PRICING, ratesFor, costOf, formatUSD, formatInt } from './pricing.js';
 import { createLatestRequest } from './latestRequest.js';
+import { analyzeInput } from './inspectorDomain.js';
 
 const tokenizerLoad = createLatestRequest();
 
@@ -255,12 +256,18 @@ export function processText() {
     if (!input.trim()) {
         clearAnalysis();
         state.lastResult = null;
-        return;
+        return null;
+    }
+    const inputStatus = analyzeInput(input);
+    if (!inputStatus.accepted) {
+        clearAnalysis();
+        state.lastResult = null;
+        return null;
     }
     let result;
     if (state.currentTok) {
         try {
-            result = tokenizeReal(state.currentTok, input);
+            result = tokenizeReal(state.currentTok, input, state.analysisOptions);
             setEngineStatus('real');
         } catch (e) {
             console.warn('Real tokenization failed, heuristic fallback:', e);
@@ -268,7 +275,7 @@ export function processText() {
             result = tokenizeHeuristic(input, state.currentModelId, {
                 code: 'tokenizer-execution-failed',
                 message: e instanceof Error ? e.message : 'Tokenizer execution failed.',
-            });
+            }, state.analysisOptions);
         }
     } else {
         result = tokenizeHeuristic(input, state.currentModelId, {
@@ -276,9 +283,10 @@ export function processText() {
             message: state.loading
                 ? 'The requested tokenizer is still loading.'
                 : 'The requested tokenizer has not been loaded.',
-        });
+        }, state.analysisOptions);
     }
     render(result);
+    return result;
 }
 
 export function playStageAnim() {

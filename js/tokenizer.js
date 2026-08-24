@@ -3,6 +3,8 @@
 import { AutoTokenizer, env } from '../vendor/huggingface-transformers-3.8.1.min.js';
 import { MODELS } from './artifacts.js';
 import { createAnalysisRequest, createAnalysisResult } from './analysisContract.js';
+import { normalizeAnalysisOptions, toTokenizerCallOptions } from './analysisOptions.js';
+import { classifyRoundTrip } from './inspectorDomain.js';
 import { displaySurface, displaySurfaces, labelByteContinuations } from './byteDisplay.js';
 export { MODELS } from './artifacts.js';
 export { byteLevelBytes, byteLevelToText, displaySurface, displaySurfaces, labelByteContinuations } from './byteDisplay.js';
@@ -25,12 +27,18 @@ const TOKENIZER_ADAPTER = Object.freeze({
     version: '1.0.0',
 });
 
-function finalizeAnalysisResult(tokenizerResult, text, requestedModelId, fallbackReason = null) {
+function finalizeAnalysisResult(
+    tokenizerResult,
+    text,
+    requestedModelId,
+    fallbackReason = null,
+    options = {},
+) {
     const request = createAnalysisRequest({
         requestId: 'analysis-' + (++_analysisSequence),
         modelId: requestedModelId,
         text,
-        options: { addSpecialTokens: true },
+        options,
     });
     const provenance = tokenizerResult.engine === 'real'
         ? {
@@ -53,8 +61,50 @@ function finalizeAnalysisResult(tokenizerResult, text, requestedModelId, fallbac
         request,
         tokenizerResult,
         provenance,
+        warnings: tokenizerResult.warnings,
         fallbackReason: normalizedFallback,
     });
+}
+
+function numericArray(value, label, optional = false) {
+    if (value === undefined || value === null) {
+        if (optional) return null;
+        throw new Error(`Tokenizer returned no ${label}`);
+    }
+    const raw = value && value.data !== undefined ? value.data : value;
+    let flattened = raw;
+    if (Array.isArray(raw) && raw.length === 1
+        && (Array.isArray(raw[0]) || ArrayBuffer.isView(raw[0]))) {
+        [flattened] = raw;
+    }
+    if (!Array.isArray(flattened) && !ArrayBuffer.isView(flattened)) {
+        throw new Error(`Tokenizer returned invalid ${label}`);
+    }
+    return Array.from(flattened, (item) => {
+        const number = typeof item === 'bigint' ? Number(item) : item;
+        if (!Number.isSafeInteger(number) || number < 0) {
+            throw new Error(`Tokenizer returned invalid ${label}`);
+        }
+        return number;
+    });
+}
+
+function classifyDecodedText({ text, normalized, decoded, decodedWithSpecialTokens, finalTokens, tok, options }) {
+    const allSpecialIds = new Set(Array.from(tok.all_special_ids || [], Number));
+    const unknownTokenDetected = finalTokens.some((token) => token === tok.unk_token || /(?:<unk>|\[UNK\])/i.test(token));
+    const specialTokensRemoved = options.addSpecialTokens
+        && decodedWithSpecialTokens !== decoded
+        && allSpecialIds.size > 0;
+    if (options.truncation && options.maxLength !== null && decoded !== text) {
+        return 'truncation';
+    }
+    return classifyRoundTrip({
+        source: text,
+        decoded,
+        normalized,
+        unknownTokenDetected,
+        specialTokensRemoved,
+    }).kind;
 }
 
 // 토크나이저 로드(캐시). onProgress(frac0to1, raw) 콜백 옵션
@@ -91,6 +141,15 @@ export async function loadTokenizer(modelId, onProgress) {
     }
 }
 
+export function disposeTokenizer(modelId) {
+    if (typeof modelId !== 'string' || modelId.trim() === '') {
+        throw new TypeError('modelId must be a non-empty string');
+    }
+    const disposed = _cache.delete(modelId);
+    _pending.delete(modelId);
+    return disposed;
+}
+
 // byte-level / sentencepiece 마커를 가독성 기호로 치환 (표시용)
 export function prettyToken(t) {
     if (t == null) return '';
@@ -114,7 +173,8 @@ export function isSpecialToken(t) {
 }
 
 // 실제 토크나이저로 4단계 추출
-export function tokenizeReal(tok, text) {
+export function tokenizeReal(tok, text, options = {}) {
+    const normalizedOptions = normalizeAnalysisOptions(options);
     // 1. Normalization (string -> string, normalizer 가 null 일 수 있음)
     let normalized = text;
     if (tok.normalizer) {
@@ -152,10 +212,23 @@ export function tokenizeReal(tok, text) {
 
     // 4. Post-processing: 호출 옵션에 따른 최종 ids 와 토큰 문자열
     let ids;
+    let attentionMask = null;
+    let tokenTypeIds = null;
+    let paddingSide = tok.padding_side === 'left' ? 'left' : 'right';
+    const previousPaddingSide = tok.padding_side;
     try {
-        ids = tok.encode(text);
+        if (normalizedOptions.paddingSide !== 'runtime') {
+            tok.padding_side = normalizedOptions.paddingSide;
+        }
+        paddingSide = tok.padding_side === 'left' ? 'left' : 'right';
+        const encoded = tok(text, toTokenizerCallOptions(normalizedOptions));
+        ids = numericArray(encoded.input_ids, 'token IDs');
+        attentionMask = numericArray(encoded.attention_mask, 'attention mask', true);
+        tokenTypeIds = numericArray(encoded.token_type_ids, 'token type IDs', true);
     } catch (error) {
         throw new Error('Tokenizer encode failed', { cause: error });
+    } finally {
+        tok.padding_side = previousPaddingSide;
     }
     if (!ids || typeof ids.length !== 'number') throw new Error('Tokenizer returned invalid token IDs');
     const idList = Array.from(ids);
@@ -176,6 +249,39 @@ export function tokenizeReal(tok, text) {
     if (finalTokens.length !== idList.length || finalTokens.some((value) => typeof value !== 'string')) {
         throw new Error('Tokenizer returned invalid final tokens');
     }
+
+    let decoded;
+    let decodedWithSpecialTokens;
+    try {
+        decoded = tok.decode(idList, {
+            skip_special_tokens: true,
+            clean_up_tokenization_spaces: false,
+        });
+        decodedWithSpecialTokens = tok.decode(idList, {
+            skip_special_tokens: false,
+            clean_up_tokenization_spaces: false,
+        });
+    } catch (error) {
+        throw new Error('Tokenizer decode failed', { cause: error });
+    }
+    if (typeof decoded !== 'string' || typeof decodedWithSpecialTokens !== 'string') {
+        throw new Error('Tokenizer returned invalid decoded text');
+    }
+    const specialIds = new Set(Array.from(tok.all_special_ids || [], Number));
+    const specialTokenMask = idList.map((id) => specialIds.has(id) ? 1 : 0);
+    const roundTrip = {
+        decoded,
+        decodedWithSpecialTokens,
+        classification: classifyDecodedText({
+            text,
+            normalized,
+            decoded,
+            decodedWithSpecialTokens,
+            finalTokens,
+            tok,
+            options: normalizedOptions,
+        }),
+    };
 
     const bl = isByteLevel(tok);
     const rawPreDisplay = displaySurfaces(preTokens, bl);
@@ -208,7 +314,14 @@ export function tokenizeReal(tok, text) {
         pieces,
         preDisplay,
         finDisplay,
-    }, text, tok.__modelId);
+        encoding: {
+            attentionMask,
+            tokenTypeIds,
+            specialTokenMask,
+            paddingSide,
+        },
+        roundTrip,
+    }, text, tok.__modelId, null, normalizedOptions);
 }
 
 // ---- 휴리스틱 폴백 (네트워크/로드 실패 시 앱이 죽지 않도록 유지) ----
@@ -223,7 +336,8 @@ function _heuristicId(token) {
     return (Math.abs(hash) % 99000) + 1000;
 }
 
-export function tokenizeHeuristic(text, requestedModelId = null, fallbackReason = null) {
+export function tokenizeHeuristic(text, requestedModelId = null, fallbackReason = null, options = {}) {
+    const normalizedOptions = normalizeAnalysisOptions(options);
     // 1. Normalization
     const normalized = text.normalize('NFC');
 
@@ -263,7 +377,9 @@ export function tokenizeHeuristic(text, requestedModelId = null, fallbackReason 
     });
 
     // 4. Post-processing
-    const finalTokens = ['<|begin_of_text|>', ...subwords, '<|end_of_text|>'];
+    const finalTokens = normalizedOptions.addSpecialTokens
+        ? ['<|begin_of_text|>', ...subwords, '<|end_of_text|>']
+        : [...subwords];
     const ids = finalTokens.map(_heuristicId);
 
     const preDisplay = preTokens.map((t) => displaySurface(t, false));
@@ -284,19 +400,28 @@ export function tokenizeHeuristic(text, requestedModelId = null, fallbackReason 
         pieces,
         preDisplay,
         finDisplay,
-    }, text, requestedModelId, fallbackReason);
+        warnings: normalizedOptions.textPair !== null
+            || normalizedOptions.padding !== 'none'
+            || normalizedOptions.truncation
+            || normalizedOptions.paddingSide !== 'runtime'
+            ? [{
+                  code: 'heuristic-options-limited',
+                  message: 'Pair, padding, truncation, and padding-side options require the real tokenizer.',
+              }]
+            : [],
+    }, text, requestedModelId, fallbackReason, normalizedOptions);
 }
 
 // 토크나이저가 있으면 실제 토큰화, 없으면 휴리스틱 (앱 공용 폴백 래퍼)
-export function tokenizeWith(tok, input, requestedModelId = null) {
+export function tokenizeWith(tok, input, requestedModelId = null, options = {}) {
     if (tok) {
         try {
-            return tokenizeReal(tok, input);
+            return tokenizeReal(tok, input, options);
         } catch (error) {
             return tokenizeHeuristic(input, tok.__modelId || requestedModelId, {
                 code: 'tokenizer-execution-failed',
                 message: error instanceof Error ? error.message : 'Tokenizer execution failed.',
-            });
+            }, options);
         }
     }
     return tokenizeHeuristic(input, requestedModelId, requestedModelId
@@ -304,5 +429,5 @@ export function tokenizeWith(tok, input, requestedModelId = null) {
               code: 'tokenizer-not-loaded',
               message: 'The requested tokenizer has not been loaded.',
           }
-        : null);
+        : null, options);
 }

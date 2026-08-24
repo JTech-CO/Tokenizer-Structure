@@ -14,6 +14,7 @@
     <link rel="stylesheet" href="css/controls.css">
     <link rel="stylesheet" href="css/analysis.css">
     <link rel="stylesheet" href="css/views.css">
+    <link rel="stylesheet" href="css/p1.css">
 </head>
 <body class="font-sans p-4 flex flex-col gap-4 box-border">
 
@@ -47,18 +48,24 @@
                 <button type="button" role="tab" tabindex="0" aria-selected="true" aria-controls="pipelineView" class="view-tab is-active" data-view="pipeline" id="tabPipeline">파이프라인</button>
                 <button type="button" role="tab" tabindex="-1" aria-selected="false" aria-controls="compareView" class="view-tab" data-view="compare" id="tabCompare">모델 비교</button>
                 <button type="button" role="tab" tabindex="-1" aria-selected="false" aria-controls="matrixView" class="view-tab" data-view="matrix" id="tabMatrix">입력 샘플 매트릭스</button>
+                <button type="button" role="tab" tabindex="-1" aria-selected="false" aria-controls="inspectorView" class="view-tab" data-view="inspector" id="tabInspector">Inspector</button>
+                <button type="button" role="tab" tabindex="-1" aria-selected="false" aria-controls="learnView" class="view-tab" data-view="learn" id="tabLearn">5분 Learn</button>
             </div>
             <button type="button" class="view-tab" id="costTableBtn" aria-haspopup="dialog" aria-controls="costModal" aria-expanded="false">수록 모델 단가표</button>
         </div>
         <div class="relative" id="inputRow">
             <label for="inputText" class="sr-only" id="inputTextLabel">분석할 텍스트</label>
-            <input type="text" id="inputText"
-                   class="w-full bg-transparent border-2 border-current px-4 py-3 text-lg transition-colors placeholder-gray-500 font-bold"
-                   value="안녕하세요! LLM 토크나이저가 어떻게 작동하는지 알아봅시다. 🤗"
-                   placeholder="분석할 텍스트를 입력하세요..." 
-                   autocomplete="off" spellcheck="false" />
-            <div class="absolute right-3 top-3.5">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" stroke-linejoin="miter"><path d="M2 12h4l3-9 5 18 3-9h5"/></svg>
+            <div class="input-editor-shell">
+                <pre id="inputLineNumbers" class="input-line-numbers" aria-hidden="true">1</pre>
+                <textarea id="inputText" class="input-editor"
+                          rows="3" placeholder="분석할 텍스트를 입력하세요..."
+                          autocomplete="off" spellcheck="false"
+                          aria-describedby="inputMetrics inputRemaining inputWarning">안녕하세요! LLM 토크나이저가 어떻게 작동하는지 알아봅시다. 🤗</textarea>
+            </div>
+            <div class="input-meta-bar">
+                <span id="inputMetrics">1줄</span>
+                <span id="inputRemaining"></span>
+                <span id="inputWarning" class="input-warning" role="status" aria-live="polite"></span>
             </div>
         </div>
         <div class="flex items-center gap-1 flex-wrap" id="presetBtns"></div>
@@ -189,6 +196,100 @@
         <div id="matrixStatus" class="shrink-0 text-sm font-bold mb-2" role="status" aria-live="polite"></div>
         <div class="flex-1 overflow-auto border-2 border-current" id="matrixTableWrap" tabindex="0" aria-label="입력 샘플 표 스크롤 영역">
             <table class="matrix-table" id="matrixTable"></table>
+        </div>
+    </div>
+
+    <!-- P1: 재현 가능한 tokenizer Inspector -->
+    <div id="inspectorView" class="flex-1 flex flex-col gap-4 min-h-0 hidden" role="tabpanel" aria-labelledby="tabInspector" hidden>
+        <section class="p1-panel shrink-0" aria-labelledby="inspectorOptionsTitle">
+            <div class="p1-panel-head">
+                <h2 id="inspectorOptionsTitle">Inspector 옵션</h2>
+                <div id="inspectorOptionsNote" class="p1-note"></div>
+            </div>
+            <div class="inspector-options-grid">
+                <label class="inspector-option"><span id="labelAddSpecial">특수 토큰 추가</span><input type="checkbox" id="optionAddSpecial" checked></label>
+                <label class="inspector-option inspector-option-wide"><span id="labelTextPair">두 번째 텍스트 (선택)</span><textarea id="optionTextPair" rows="2" spellcheck="false"></textarea></label>
+                <label class="inspector-option">
+                    <span id="labelPadding">Padding</span>
+                    <select id="optionPadding"><option id="paddingNoneOption" value="none">없음</option><option id="paddingMaxOption" value="max-length">max length까지</option></select>
+                </label>
+                <label class="inspector-option">
+                    <span id="labelPaddingSide">Padding 방향</span>
+                    <select id="optionPaddingSide"><option id="paddingRuntimeOption" value="runtime">artifact 기본값</option><option id="paddingLeftOption" value="left">왼쪽</option><option id="paddingRightOption" value="right">오른쪽</option></select>
+                </label>
+                <label class="inspector-option"><span id="labelTruncation">Truncation</span><input type="checkbox" id="optionTruncation"></label>
+                <label class="inspector-option"><span id="labelMaxLength">Max length</span><input type="number" id="optionMaxLength" min="1" max="8192" step="1" inputmode="numeric" disabled></label>
+                <label class="inspector-option">
+                    <span id="labelStride">Stride</span><input type="number" id="optionStride" value="0" disabled aria-describedby="strideHelp">
+                    <span id="strideHelp" class="option-help">v3.8.1 공개 tokenizer 호출에서 미지원</span>
+                </label>
+            </div>
+            <div id="inspectorOptionStatus" class="action-status px-3" role="status" aria-live="polite"></div>
+        </section>
+        <div class="inspector-grid flex-1 min-h-0">
+            <section class="p1-panel" aria-labelledby="inspectorSummaryTitle">
+                <div class="p1-panel-head"><h2 id="inspectorSummaryTitle">분석 요약</h2></div>
+                <div class="inspector-scroll">
+                    <div id="inspectorSummary" class="summary-grid"></div>
+                    <h3 id="roundTripTitle" class="p1-subheading">Encode → decode</h3>
+                    <p id="roundTripClassification" class="p1-note"></p>
+                    <div id="roundTripDiff" class="text-diff"></div>
+                    <h3 id="normalizationDiffTitle" class="p1-subheading">원문 ↔ 정규화 diff</h3>
+                    <div id="normalizationDiff" class="text-diff"></div>
+                    <h3 id="lensTitle" class="p1-subheading">Unicode A/B 렌즈</h3>
+                    <div id="inspectorLenses" class="lens-buttons" aria-label="Unicode A/B lenses"></div>
+                    <div id="lensResult" class="mt-2"></div>
+                </div>
+            </section>
+            <section class="p1-panel" aria-labelledby="inspectorDetailsTitle">
+                <div class="p1-panel-head">
+                    <h2 id="inspectorDetailsTitle">Token 상세</h2>
+                    <div class="inspector-actions mt-2">
+                        <button type="button" class="p1-button" id="exportJsonBtn">JSON 저장</button>
+                        <button type="button" class="p1-button" id="exportCsvBtn">CSV 저장</button>
+                        <button type="button" class="p1-button" id="copyJsonBtn">JSON 복사</button>
+                        <button type="button" class="p1-button" id="shareBtn">공유 링크 복사</button>
+                        <label class="heatmap-toggle"><input type="checkbox" id="shareIncludeInput"><span id="shareIncludeLabel">링크에 원문 포함</span></label>
+                    </div>
+                    <div id="sharePrivacyNote" class="p1-note mt-2">기본값은 원문을 링크에서 제외합니다.</div>
+                </div>
+                <div class="token-detail-wrap" tabindex="0" aria-label="Token detail table scroll area">
+                    <table class="token-detail-table">
+                        <thead><tr>
+                            <th>#</th><th>ID</th><th id="tokenRawHead">raw token</th><th id="tokenDisplayHead">표시</th>
+                            <th id="tokenBytesHead">표시 UTF-8 bytes</th><th id="tokenMasksHead">attention / type</th>
+                            <th id="tokenSourceHead">source</th><th id="tokenOffsetsHead">original / normalized offset</th>
+                        </tr></thead>
+                        <tbody id="inspectorTokenRows"></tbody>
+                    </table>
+                </div>
+                <div id="inspectorActionStatus" class="action-status px-3" role="status" aria-live="polite"></div>
+            </section>
+        </div>
+    </div>
+
+    <!-- P1: 3개의 5분 학습 경로 -->
+    <div id="learnView" class="flex-1 flex flex-col gap-4 min-h-0 hidden" role="tabpanel" aria-labelledby="tabLearn" hidden>
+        <section class="p1-panel shrink-0">
+            <div class="p1-panel-head learn-toolbar">
+                <h2 id="learnTitle">5분 학습 경로</h2>
+                <label class="inspector-option"><span class="sr-only">Lesson</span><select id="lessonSelect" class="learn-control"></select></label>
+                <label class="inspector-option">
+                    <span id="explanationLevelLabel">설명 수준</span>
+                    <select id="explanationLevel" class="learn-control"><option id="levelBeginnerOption" value="beginner">초급</option><option id="levelTechnicalOption" value="technical">기술</option></select>
+                </label>
+            </div>
+        </section>
+        <div class="learn-layout flex-1 min-h-0">
+            <nav class="p1-panel inspector-scroll" aria-labelledby="lessonPathsTitle">
+                <h2 id="lessonPathsTitle" class="p1-subheading">학습 경로</h2><div id="lessonNav"></div>
+            </nav>
+            <main class="p1-panel inspector-scroll" aria-labelledby="lessonContentTitle">
+                <h2 id="lessonContentTitle" class="sr-only">학습 내용</h2><div id="lessonContent"></div>
+            </main>
+            <aside class="p1-panel inspector-scroll" aria-labelledby="lessonGlossaryTitle">
+                <h2 id="lessonGlossaryTitle" class="p1-subheading">용어집</h2><div id="lessonGlossary"></div>
+            </aside>
         </div>
     </div>
 
