@@ -133,3 +133,12 @@
     background-color: #000000;
     color: #ffffff;
 }
+
+/* 키보드 포커스는 배경색과 무관하게 선명하게 유지 */
+button:focus-visible,
+select:focus-visible,
+input:focus-visible,
+[tabindex]:focus-visible {
+    outline: 3px solid #2563eb;
+    outline-offset: 2px;
+}

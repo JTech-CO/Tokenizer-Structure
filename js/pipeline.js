@@ -4,6 +4,9 @@ import { i18n } from './i18n.js';
 import { state } from './state.js';
 import { MODELS, loadTokenizer, tokenizeReal, tokenizeHeuristic, isSpecialToken } from './tokenizer.js';
 import { PRICING, ratesFor, costOf, formatUSD, formatInt } from './pricing.js';
+import { createLatestRequest } from './latestRequest.js';
+
+const tokenizerLoad = createLatestRequest();
 
 // 토크나이저 모델 드롭다운
 export function buildModelSelect() {
@@ -32,7 +35,13 @@ export function buildCostSelect() {
         groups[prov].forEach((p) => {
             const o = document.createElement('option');
             o.value = p.id;
-            o.textContent = p.name;
+            const flags = [
+                p.status ? i18n[state.lang][p.status] : '',
+                p.effectiveUntil ? `${i18n[state.lang].promoUntil} ${p.effectiveUntil}` : '',
+                p.guaranteedThrough ? `${i18n[state.lang].promoGuaranteedThrough} ${p.guaranteedThrough}` : '',
+                p.sunsetEarliest ? `${i18n[state.lang].sunsetEarliest} ${p.sunsetEarliest} → ${p.replacement}` : '',
+            ].filter(Boolean);
+            o.textContent = p.name + (flags.length ? ` · ${flags.join(' · ')}` : '');
             og.appendChild(o);
         });
         sel.appendChild(og);
@@ -60,21 +69,30 @@ export function setEngineStatus(kind, frac) {
 
 // 현재 모델의 토크나이저 확보 (로드/캐시). 실패 시 폴백 상태로 전환
 export async function ensureTokenizer() {
-    if (state.loading) return;
     if (state.currentTok && state.currentTok.__modelId === state.currentModelId) return;
+    const modelId = state.currentModelId;
+    const requestId = tokenizerLoad.begin();
     state.loading = true;
     state.currentTok = null;
     setEngineStatus('loading');
     try {
-        const tok = await loadTokenizer(state.currentModelId, (frac) => setEngineStatus('loading', frac));
+        const tok = await loadTokenizer(modelId, (frac) => {
+            if (tokenizerLoad.isCurrent(requestId) && state.currentModelId === modelId) {
+                setEngineStatus('loading', frac);
+            }
+        });
+        if (!tokenizerLoad.isCurrent(requestId) || state.currentModelId !== modelId) return;
         state.currentTok = tok;
         setEngineStatus('real');
     } catch (e) {
+        if (!tokenizerLoad.isCurrent(requestId) || state.currentModelId !== modelId) return;
         state.currentTok = null;
         setEngineStatus('fallback');
         console.warn('Tokenizer load failed, using heuristic fallback:', e);
     } finally {
-        state.loading = false;
+        if (tokenizerLoad.isCurrent(requestId) && state.currentModelId === modelId) {
+            state.loading = false;
+        }
     }
 }
 
@@ -101,7 +119,7 @@ export function render(result) {
 
     // 1. Normalization + 토큰↔원문 매핑
     const mapHtml = pieces
-        .map((pc, i) => `<span class="map-tok" data-ti="${i}">${escapeHtml(pc.surface) || '∅'}</span>`)
+        .map((pc, i) => `<span class="map-tok" data-ti="${i}" tabindex="0">${escapeHtml(pc.display) || '∅'}</span>`)
         .join('');
     step1Box.innerHTML =
         `${L.originalText} <br><span class="opacity-60">${escapeHtml(input)}</span>` +
@@ -113,9 +131,13 @@ export function render(result) {
 
     // 3. Subword (색 또는 히트맵) + 매핑 인덱스
     pieces.forEach((pc, i) => {
-        const badge = createTokenBadge(pc.surface, pc.token, false);
+        const badge = createTokenBadge(pc.display, pc.token, false);
         badge.dataset.ti = i;
-        if (state.heatmapOn) {
+        badge.tabIndex = 0;
+        if (pc.continuation) {
+            badge.classList.add('byte-continuation');
+            badge.title = L.byteContinuation;
+        } else if (state.heatmapOn) {
             badge.style.backgroundColor = heatColor(pc.len);
             badge.title = `${pc.len} ${L.effCharPerTok}`;
         }
@@ -179,30 +201,47 @@ function ctxGaugeHtml(total) {
         '<div class="ctx-gauge">' +
         `<div class="ctx-head"><span>${L.ctxWindow}</span><span>${total} / ${formatInt(ctx)}</span></div>` +
         `<div class="ctx-bar"><div class="ctx-fill" style="width:${Math.max(pct, total > 0 ? 0.5 : 0)}%"></div></div>` +
-        `<div class="ctx-pct">${pctShow}%</div></div>`
+        `<div class="ctx-pct">${pctShow}%</div>` +
+        `<div class="cost-note">${L.ctxEstimate}</div></div>`
     );
 }
 
-// API 비용 환산 (footer 카드)
+// 현재 토크나이저의 토큰 수를 선택한 API 단가에 대입한 입력비 추정
 export function renderCost(result) {
     const L = i18n[state.lang];
     const box = el('costOutput');
+    if (!result || result.engine !== 'real') {
+        box.innerHTML = `<div class="cost-note">${L.costUnavailable}</div>`;
+        return;
+    }
     const entry = PRICING.find((p) => p.id === state.costModelId) || PRICING[0];
     const tokens = result ? result.ids.length : 0;
     const rates = ratesFor(entry, tokens);
     const cur = costOf(rates.input, tokens);
-    const k1 = costOf(rates.input, 1000);
-    const k100 = costOf(rates.input, 100000);
+    const k1 = costOf(ratesFor(entry, 1000).input, 1000);
+    const k100 = costOf(ratesFor(entry, 100000).input, 100000);
+    const tokenizer = MODELS.find((m) => m.id === state.currentModelId);
+    const basis = tokenizer ? tokenizer.label : state.currentModelId;
     box.innerHTML =
-        `<div class="cost-row"><span>${L.costInputRate}</span><b>$${entry.input.toFixed(2)} /1M</b></div>` +
-        `<div class="cost-row"><span>${L.costOutputRate}</span><b>$${entry.output.toFixed(2)} /1M</b></div>` +
+        `<div class="cost-row"><span>${L.costInputRate}</span><b>$${rates.input.toFixed(2)} /1M</b></div>` +
+        `<div class="cost-row"><span>${L.costOutputRate}</span><b>$${rates.output.toFixed(2)} /1M</b></div>` +
         `<div class="cost-row"><span>${L.costContext}</span><b>${formatInt(entry.context)}</b></div>` +
         `<hr class="cost-hr">` +
         `<div class="cost-row cost-main"><span>${tokens} ${L.tokensSuffix} ${L.costInputWord}</span><b>${formatUSD(cur)}</b></div>` +
         `<div class="cost-sub">1K ≈ ${formatUSD(k1)} · 100K ≈ ${formatUSD(k100)}</div>` +
         (entry.tiered
             ? `<div class="cost-note">&gt;${formatInt(entry.tiered.threshold)} ${L.costTieredNote}: $${entry.tiered.input.toFixed(2)}/$${entry.tiered.output.toFixed(2)}</div>`
-            : '');
+            : '') +
+        (entry.effectiveUntil
+            ? `<div class="cost-note">${L.promoUntil}: ${entry.effectiveUntil}</div>`
+            : '') +
+        (entry.guaranteedThrough
+            ? `<div class="cost-note">${L.promoGuaranteedThrough}: ${entry.guaranteedThrough}</div>`
+            : '') +
+        (entry.sunsetEarliest
+            ? `<div class="cost-note">${L.sunsetEarliest}: ${entry.sunsetEarliest} → ${entry.replacement}</div>`
+            : '') +
+        `<div class="cost-note">${L.costBasis}: ${escapeHtml(basis)} · ${L.costEstimate}</div>`;
 }
 
 export function clearAnalysis() {
@@ -223,8 +262,10 @@ export function processText() {
     if (state.currentTok) {
         try {
             result = tokenizeReal(state.currentTok, input);
+            setEngineStatus('real');
         } catch (e) {
             console.warn('Real tokenization failed, heuristic fallback:', e);
+            setEngineStatus('fallback');
             result = tokenizeHeuristic(input);
         }
     } else {
@@ -235,6 +276,10 @@ export function processText() {
 
 export function playStageAnim() {
     const m = document.querySelector('main');
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        m.classList.remove('anim');
+        return;
+    }
     m.classList.remove('anim');
     void m.offsetWidth; // 리플로우로 애니메이션 재시작
     m.classList.add('anim');

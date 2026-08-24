@@ -1,0 +1,7 @@
+# 로컬 도구 설정 (Claude Code preview/launch 등) — 배포 불필요
+.claude/
+
+# OS / 에디터
+.DS_Store
+Thumbs.db
+*.log

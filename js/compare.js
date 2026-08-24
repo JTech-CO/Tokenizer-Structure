@@ -3,6 +3,12 @@ import { el, createTokenBadge } from './dom.js';
 import { i18n } from './i18n.js';
 import { state } from './state.js';
 import { MODELS, loadTokenizer, tokenizeWith } from './tokenizer.js';
+import { createLatestRequest } from './latestRequest.js';
+
+const compareLoads = {
+    A: createLatestRequest(),
+    B: createLatestRequest(),
+};
 
 export function buildCmpSelects() {
     [['cmpSelectA', state.cmpModelA], ['cmpSelectB', state.cmpModelB]].forEach(([id, val]) => {
@@ -36,20 +42,41 @@ export function setCmpStatus(side, kind) {
 
 async function ensureCmpTok(side) {
     const modelId = side === 'A' ? state.cmpModelA : state.cmpModelB;
-    const cur = side === 'A' ? state.cmpTokA : state.cmpTokB;
-    if (cur && cur.__modelId === modelId) return;
+    const tokenKey = side === 'A' ? 'cmpTokA' : 'cmpTokB';
+    const loadingKey = side === 'A' ? 'cmpLoadingA' : 'cmpLoadingB';
+    const cur = state[tokenKey];
+    if (cur && cur.__modelId === modelId) {
+        state[loadingKey] = false;
+        setCmpStatus(side, 'real');
+        return;
+    }
+    const requestId = compareLoads[side].begin();
+    state[tokenKey] = null;
+    state[loadingKey] = true;
+    clearCompareSide(side);
+    el('compareDiff').textContent = i18n[state.lang].cmpUnavailable;
     setCmpStatus(side, 'loading');
     try {
         const tok = await loadTokenizer(modelId);
-        if (side === 'A') state.cmpTokA = tok;
-        else state.cmpTokB = tok;
+        const selected = side === 'A' ? state.cmpModelA : state.cmpModelB;
+        if (!compareLoads[side].isCurrent(requestId) || selected !== modelId) return;
+        state[tokenKey] = tok;
+        state[loadingKey] = false;
         setCmpStatus(side, 'real');
     } catch (e) {
-        if (side === 'A') state.cmpTokA = null;
-        else state.cmpTokB = null;
+        const selected = side === 'A' ? state.cmpModelA : state.cmpModelB;
+        if (!compareLoads[side].isCurrent(requestId) || selected !== modelId) return;
+        state[tokenKey] = null;
+        state[loadingKey] = false;
         setCmpStatus(side, 'fallback');
         console.warn('compare tokenizer load failed', side, e);
     }
+}
+
+function clearCompareSide(side) {
+    el('cmpSub' + side).innerHTML = '';
+    el('cmpIds' + side).textContent = '';
+    el('cmpEff' + side).textContent = '';
 }
 
 function renderCompareSide(side, result) {
@@ -58,7 +85,7 @@ function renderCompareSide(side, result) {
     const ids = el('cmpIds' + side);
     const eff = el('cmpEff' + side);
     sub.innerHTML = '';
-    result.pieces.forEach((pc) => sub.appendChild(createTokenBadge(pc.surface, pc.token, false)));
+    result.pieces.forEach((pc) => sub.appendChild(createTokenBadge(pc.display, pc.token, false)));
     ids.textContent = `[ ${result.ids.join(', ')} ]`;
     const chars = [...el('inputText').value].length;
     const tokens = result.pieces.length;
@@ -71,17 +98,36 @@ function renderCompareSide(side, result) {
 export function renderCompare() {
     const input = el('inputText').value;
     if (!input.trim()) {
-        ['cmpSubA', 'cmpSubB', 'cmpIdsA', 'cmpIdsB', 'cmpEffA', 'cmpEffB', 'compareDiff'].forEach(
-            (id) => (el(id).innerHTML = '')
-        );
+        clearCompareSide('A');
+        clearCompareSide('B');
+        el('compareDiff').textContent = '';
         return;
     }
-    const rA = tokenizeWith(state.cmpTokA, input);
-    const rB = tokenizeWith(state.cmpTokB, input);
-    const tA = renderCompareSide('A', rA);
-    const tB = renderCompareSide('B', rB);
+    const rA = state.cmpTokA ? tokenizeWith(state.cmpTokA, input) : null;
+    const rB = state.cmpTokB ? tokenizeWith(state.cmpTokB, input) : null;
+    const realA = rA && rA.engine === 'real';
+    const realB = rB && rB.engine === 'real';
+
+    if (realA) {
+        setCmpStatus('A', 'real');
+    } else {
+        clearCompareSide('A');
+        if (state.cmpTokA) setCmpStatus('A', 'fallback');
+    }
+    if (realB) {
+        setCmpStatus('B', 'real');
+    } else {
+        clearCompareSide('B');
+        if (state.cmpTokB) setCmpStatus('B', 'fallback');
+    }
 
     const L = i18n[state.lang];
+    if (!realA || !realB) {
+        el('compareDiff').textContent = L.cmpUnavailable;
+        return;
+    }
+    const tA = renderCompareSide('A', rA);
+    const tB = renderCompareSide('B', rB);
     const labelA = (MODELS.find((m) => m.id === state.cmpModelA) || {}).label || 'A';
     const labelB = (MODELS.find((m) => m.id === state.cmpModelB) || {}).label || 'B';
     const diff = tA - tB;

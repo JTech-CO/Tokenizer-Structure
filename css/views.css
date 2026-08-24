@@ -32,7 +32,11 @@
     font-variant-numeric: tabular-nums;
 }
 
-/* 모달 (전 모델 비용표) */
+body.modal-open {
+    overflow: hidden !important;
+}
+
+/* 모달 (수록 모델 비용표) */
 .modal-overlay {
     position: fixed;
     inset: 0;
@@ -116,4 +120,30 @@ main.anim > .step-card:nth-child(4) { animation-delay: 1.10s; }
     background-color: #fde047 !important;
     outline: 2px solid #000000;
     outline-offset: -1px;
+}
+
+.matrix-unavailable {
+    background-color: #f3f4f6;
+    color: #6b7280;
+}
+
+.map-tok:focus-visible,
+.token-badge[data-ti]:focus-visible {
+    background-color: #fde047 !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
+    }
+
+    main.anim > .step-card {
+        opacity: 1;
+        transform: none;
+    }
 }

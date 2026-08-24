@@ -3,7 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LLM 토크나이저 작동 구조</title>
+    <title>LLM 토크나이저 구조 시뮬레이터</title>
+    <meta name="description" content="공개 토크나이저의 처리 단계와 수록 API의 표준 입력 단가를 근사 비교하는 브라우저 시뮬레이터">
+    <link rel="canonical" href="https://jtech-co.github.io/Tokenizer-Structure/llm_tokenizer_simulator.html">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="css/base.css">
     <link rel="stylesheet" href="css/controls.css">
@@ -14,38 +16,41 @@
 
     <!-- 1. 헤더 및 입력 영역 (고정 높이) -->
     <header class="shrink-0 flex flex-col gap-3">
-        <div class="flex items-center justify-between gap-3">
-            <h1 class="text-2xl font-bold flex items-center gap-2 shrink-0" id="mainTitle">
+        <div class="flex items-center justify-between gap-3" id="topBar">
+            <h1 class="text-2xl font-bold flex items-center gap-2" id="mainTitle">
                 LLM 파이프라인: 토크나이저(Tokenizer) 구조
             </h1>
-            <div class="flex items-center gap-2 shrink-0" id="pipelineControls">
-                <label for="modelSelect" class="sr-only">Tokenizer model</label>
-                <select id="modelSelect" class="model-select" title="토크나이저 모델 선택"></select>
-                <span id="engineStatus" class="engine-status"></span>
-                <label class="heatmap-toggle" title="서브워드를 토큰당 글자수(효율) 기준 색으로 표시">
-                    <input type="checkbox" id="heatmapToggle">
-                    <span id="heatmapLabel">히트맵</span>
-                </label>
-                <label class="heatmap-toggle" title="파이프라인 단계를 순차 애니메이션으로 표시">
-                    <input type="checkbox" id="animToggle">
-                    <span id="animLabel">애니메이션</span>
-                </label>
-                <button id="langToggleBtn" class="text-sm font-bold px-3 py-1 border-2 border-black hover:bg-black hover:text-white transition-colors cursor-pointer">
+            <div class="flex items-center justify-end gap-2" id="globalControls">
+                <div class="flex items-center gap-2" id="pipelineControls">
+                    <label for="modelSelect" class="sr-only" id="modelSelectLabel">토크나이저 모델</label>
+                    <select id="modelSelect" class="model-select" title="토크나이저 모델 선택"></select>
+                    <span id="engineStatus" class="engine-status" role="status" aria-live="polite"></span>
+                    <label class="heatmap-toggle" id="heatmapToggleWrap" title="토큰당 코드 포인트 수를 색으로 표시">
+                        <input type="checkbox" id="heatmapToggle">
+                        <span id="heatmapLabel">히트맵</span>
+                    </label>
+                    <label class="heatmap-toggle" id="animToggleWrap" title="파이프라인 단계를 순차 애니메이션으로 표시">
+                        <input type="checkbox" id="animToggle">
+                        <span id="animLabel">애니메이션</span>
+                    </label>
+                </div>
+                <button type="button" id="langToggleBtn" class="text-sm font-bold px-3 py-1 border-2 border-black hover:bg-black hover:text-white transition-colors cursor-pointer">
                     English
                 </button>
             </div>
         </div>
         <div class="flex items-center justify-between gap-2 flex-wrap">
-            <div class="flex items-center gap-2" id="viewTabs">
-                <button class="view-tab is-active" data-view="pipeline" id="tabPipeline">파이프라인</button>
-                <button class="view-tab" data-view="compare" id="tabCompare">모델 비교</button>
-                <button class="view-tab" data-view="matrix" id="tabMatrix">언어 매트릭스</button>
+            <div class="flex items-center gap-2 flex-wrap" id="viewTabs" role="tablist" aria-label="보기 전환">
+                <button type="button" role="tab" tabindex="0" aria-selected="true" aria-controls="pipelineView" class="view-tab is-active" data-view="pipeline" id="tabPipeline">파이프라인</button>
+                <button type="button" role="tab" tabindex="-1" aria-selected="false" aria-controls="compareView" class="view-tab" data-view="compare" id="tabCompare">모델 비교</button>
+                <button type="button" role="tab" tabindex="-1" aria-selected="false" aria-controls="matrixView" class="view-tab" data-view="matrix" id="tabMatrix">입력 샘플 매트릭스</button>
             </div>
-            <button class="view-tab" id="costTableBtn">전 모델 비용표</button>
+            <button type="button" class="view-tab" id="costTableBtn" aria-haspopup="dialog" aria-controls="costModal" aria-expanded="false">수록 모델 단가표</button>
         </div>
-        <div class="relative">
-            <input type="text" id="inputText" 
-                   class="w-full bg-transparent border-2 border-current px-4 py-3 text-lg focus:outline-none transition-colors placeholder-gray-500 font-bold" 
+        <div class="relative" id="inputRow">
+            <label for="inputText" class="sr-only" id="inputTextLabel">분석할 텍스트</label>
+            <input type="text" id="inputText"
+                   class="w-full bg-transparent border-2 border-current px-4 py-3 text-lg transition-colors placeholder-gray-500 font-bold"
                    value="안녕하세요! LLM 토크나이저가 어떻게 작동하는지 알아봅시다. 🤗"
                    placeholder="분석할 텍스트를 입력하세요..." 
                    autocomplete="off" spellcheck="false" />
@@ -57,7 +62,7 @@
     </header>
 
     <!-- 뷰 컨테이너: 파이프라인 (기본) -->
-    <div id="pipelineView" class="flex-1 flex flex-col gap-4 min-h-0">
+    <div id="pipelineView" class="flex-1 flex flex-col gap-4 min-h-0" role="tabpanel" aria-labelledby="tabPipeline">
     <!-- 2. 파이프라인 시각화 영역 (가변 높이, 남은 공간 차지) -->
     <main class="flex-1 grid grid-cols-4 gap-4 min-h-0">
         
@@ -68,7 +73,7 @@
                     <span class="flex items-center justify-center w-5 h-5 border-2 border-current text-xs font-bold bg-red-200 text-black">1</span>
                     <span id="step1Title">정규화 (Normalization)</span>
                 </h2>
-                <p class="text-[11px] mt-2 leading-tight opacity-80" id="step1Desc">입력된 텍스트의 유니코드 표준화, 소문자 변환, 불필요한 공백 제거 등 데이터를 정리합니다.</p>
+                <p class="text-[11px] mt-2 leading-tight opacity-80" id="step1Desc">모델 설정에 따라 유니코드 정규화·대소문자 처리 등을 수행합니다. 이 단계가 없는 모델도 있습니다.</p>
             </div>
             <div class="p-4 overflow-y-auto flex-1 font-mono text-sm font-bold" id="step1Output">            </div>
         </div>
@@ -80,7 +85,7 @@
                     <span class="flex items-center justify-center w-5 h-5 border-2 border-current text-xs font-bold bg-orange-200 text-black">2</span>
                     <span id="step2Title">사전 토큰화 (Pre-tokenization)</span>
                 </h2>
-                <p class="text-[11px] mt-2 leading-tight opacity-80" id="step2Desc">공백 및 구두점을 기준으로 문장을 기본 단위로 쪼갭니다. 공백은 '␣' 기호로 시각화됩니다.</p>
+                <p class="text-[11px] mt-2 leading-tight opacity-80" id="step2Desc">모델별 규칙(ByteLevel, Metaspace, 정규식 등)으로 후보 구간을 나눕니다. 공백은 '␣'로 표시합니다.</p>
             </div>
             <div class="p-4 overflow-y-auto flex-1 flex flex-wrap content-start" id="step2Output">            </div>
         </div>
@@ -90,9 +95,9 @@
             <div class="px-4 py-3 border-b-2 border-current shrink-0 relative">
                 <h2 class="text-sm font-bold flex items-center gap-2">
                     <span class="flex items-center justify-center w-5 h-5 border-2 border-current text-xs font-bold bg-yellow-200 text-black">3</span>
-                    <span id="step3Title">서브워드 (Subword BPE)</span>
+                    <span id="step3Title">토큰 모델 (BPE/WordPiece/Unigram)</span>
                 </h2>
-                <p class="text-[11px] mt-2 leading-tight opacity-80" id="step3Desc">학습된 어휘 사전(Vocab)을 바탕으로 단어를 더 작은 의미 단위(Subword)로 분할합니다.</p>
+                <p class="text-[11px] mt-2 leading-tight opacity-80" id="step3Desc">학습된 어휘와 병합·분할 규칙으로 문자열 또는 바이트 조각을 토큰에 매핑합니다.</p>
             </div>
             <div class="p-4 overflow-y-auto flex-1 flex flex-wrap content-start" id="step3Output">            </div>
         </div>
@@ -104,7 +109,7 @@
                     <span class="flex items-center justify-center w-5 h-5 border-2 border-current text-xs font-bold bg-green-200 text-black">4</span>
                     <span id="step4Title">후처리 (Post-processing)</span>
                 </h2>
-                <p class="text-[11px] mt-2 leading-tight opacity-80" id="step4Desc">모델이 문맥을 이해할 수 있도록 시작([BOS])과 끝([EOS])에 특수 토큰을 추가합니다.</p>
+                <p class="text-[11px] mt-2 leading-tight opacity-80" id="step4Desc">모델과 호출 옵션에 따라 특수 토큰이나 템플릿을 적용해 최종 시퀀스를 구성합니다.</p>
             </div>
             <div class="p-4 overflow-y-auto flex-1 flex flex-wrap content-start" id="step4Output">            </div>
         </div>
@@ -134,11 +139,12 @@
             <div class="p-3 overflow-y-auto flex-1" id="efficiencyOutput">            </div>
         </div>
 
-        <!-- API 비용 환산 -->
+        <!-- 현재 토크나이저 기준 입력비 추정 -->
         <div class="border-2 border-current flex flex-col overflow-hidden">
             <div class="px-3 py-2 border-b-2 border-current flex justify-between items-center gap-2 shrink-0">
-                <h2 class="text-xs font-bold shrink-0" id="costTitle">API 비용 환산</h2>
-                <select id="costModelSelect" class="cost-select" title="비용 환산 모델 선택"></select>
+                <h2 class="text-xs font-bold shrink-0" id="costTitle">입력비 추정</h2>
+                <label for="costModelSelect" class="sr-only" id="costModelLabel">단가 적용 모델</label>
+                <select id="costModelSelect" class="cost-select" title="단가 적용 모델"></select>
             </div>
             <div class="p-3 overflow-y-auto flex-1" id="costOutput">            </div>
         </div>
@@ -147,13 +153,14 @@
     </div><!-- /pipelineView -->
 
     <!-- 뷰 컨테이너: 모델 2열 비교 -->
-    <div id="compareView" class="flex-1 flex flex-col gap-3 min-h-0 hidden">
+    <div id="compareView" class="flex-1 flex flex-col gap-3 min-h-0 hidden" role="tabpanel" aria-labelledby="tabCompare" hidden>
         <div class="grid grid-cols-2 gap-4 flex-1 min-h-0">
             <!-- A 패널 -->
             <div class="border-2 border-current flex flex-col overflow-hidden">
                 <div class="px-3 py-2 border-b-2 border-current flex justify-between items-center gap-2 shrink-0">
+                    <label for="cmpSelectA" class="sr-only" id="cmpLabelA">비교 모델 A</label>
                     <select id="cmpSelectA" class="model-select"></select>
-                    <span id="cmpStatusA" class="engine-status"></span>
+                    <span id="cmpStatusA" class="engine-status" role="status" aria-live="polite"></span>
                 </div>
                 <div class="px-3 py-2 border-b-2 border-current shrink-0 text-xs font-bold" id="cmpEffA"></div>
                 <div class="p-3 overflow-y-auto flex-1 flex flex-wrap content-start" id="cmpSubA"></div>
@@ -162,8 +169,9 @@
             <!-- B 패널 -->
             <div class="border-2 border-current flex flex-col overflow-hidden">
                 <div class="px-3 py-2 border-b-2 border-current flex justify-between items-center gap-2 shrink-0">
+                    <label for="cmpSelectB" class="sr-only" id="cmpLabelB">비교 모델 B</label>
                     <select id="cmpSelectB" class="model-select"></select>
-                    <span id="cmpStatusB" class="engine-status"></span>
+                    <span id="cmpStatusB" class="engine-status" role="status" aria-live="polite"></span>
                 </div>
                 <div class="px-3 py-2 border-b-2 border-current shrink-0 text-xs font-bold" id="cmpEffB"></div>
                 <div class="p-3 overflow-y-auto flex-1 flex flex-wrap content-start" id="cmpSubB"></div>
@@ -174,29 +182,29 @@
     </div>
 
     <!-- 뷰 컨테이너: 언어 효율 매트릭스 -->
-    <div id="matrixView" class="flex-1 flex flex-col min-h-0 hidden">
-        <div id="matrixStatus" class="shrink-0 text-sm font-bold mb-2"></div>
-        <div class="flex-1 overflow-auto border-2 border-current">
+    <div id="matrixView" class="flex-1 flex flex-col min-h-0 hidden" role="tabpanel" aria-labelledby="tabMatrix" hidden>
+        <div id="matrixStatus" class="shrink-0 text-sm font-bold mb-2" role="status" aria-live="polite"></div>
+        <div class="flex-1 overflow-auto border-2 border-current" id="matrixTableWrap" tabindex="0" aria-label="입력 샘플 표 스크롤 영역">
             <table class="matrix-table" id="matrixTable"></table>
         </div>
     </div>
 
-    <!-- 모달: 전 모델 비용 일괄표 -->
-    <div id="costModal" class="modal-overlay">
-        <div class="modal-box">
+    <!-- 모달: 수록 모델 단가 환산 -->
+    <div id="costModal" class="modal-overlay" aria-hidden="true">
+        <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="costModalTitle" tabindex="-1">
             <div class="modal-head">
-                <h2 id="costModalTitle">전 모델 비용 일괄표</h2>
+                <h2 id="costModalTitle">수록 3사 모델 단가 환산</h2>
                 <div class="flex items-center gap-2 flex-wrap">
                     <div id="costSortBtns" class="flex items-center gap-1">
-                        <button class="sort-btn is-active" data-sort="provider" id="sortBtnProvider">제공사</button>
-                        <button class="sort-btn" data-sort="asc" id="sortBtnAsc">▲ 오름</button>
-                        <button class="sort-btn" data-sort="desc" id="sortBtnDesc">▼ 내림</button>
+                        <button type="button" class="sort-btn is-active" data-sort="provider" id="sortBtnProvider" aria-pressed="true">제공사</button>
+                        <button type="button" class="sort-btn" data-sort="asc" id="sortBtnAsc" aria-pressed="false">▲ 오름</button>
+                        <button type="button" class="sort-btn" data-sort="desc" id="sortBtnDesc" aria-pressed="false">▼ 내림</button>
                     </div>
-                    <button id="costModalClose" class="view-tab" title="닫기">✕</button>
+                    <button type="button" id="costModalClose" class="view-tab" title="닫기" aria-label="닫기">✕</button>
                 </div>
             </div>
             <div id="costModalSub" class="modal-sub"></div>
-            <div class="modal-body">
+            <div class="modal-body" id="costTableWrap" tabindex="0" aria-label="수록 모델 단가표 스크롤 영역">
                 <table class="matrix-table" id="costTable"></table>
             </div>
         </div>

@@ -1,44 +1,87 @@
 // tokenizer.js — 실제 토크나이저 엔진 (Transformers.js v3) + 휴리스틱 폴백
-// v3 고정 필수: v4는 토크나이저를 WASM으로 봉인해 4단계(normalizer/pre_tokenizer/model/post) 개별 접근 불가
+// v3.8.1 고정: 이 시뮬레이터가 사용하는 컴포넌트 접근 API와의 호환성을 유지한다.
 import { AutoTokenizer, env } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1';
+import { displaySurface, displaySurfaces, labelByteContinuations } from './byteDisplay.js';
+export { byteLevelBytes, byteLevelToText, displaySurface, displaySurfaces, labelByteContinuations } from './byteDisplay.js';
 
 // 원격 전용(브라우저): 로컬 모델 경로 탐색 비활성화 + 브라우저 캐시 사용
 env.allowLocalModels = false;
 env.useBrowserCache = true;
 
 // 모델 카탈로그 — 드롭다운에 노출
-// in-browser 로드 검증(HF Hub file-list 확인, ungated, tokenizer.json 보유, 2026-07 기준).
+// in-browser 로드 검증(HF Hub file-list 확인, ungated, tokenizer.json 보유, 2026-08-24 기준).
 // 공식 meta-llama/* · google/gemma* 는 gated라 익명 브라우저 fetch 시 401 → onnx-community/*(또는 Xenova/*) 미러 사용.
-// Qwen3.5: tokenizer_config가 v4형 'TokenizersBackend'를 선언하나 v3.8.1이 base 클래스로 폴백 → 정상 로드+4단계 동작(Node/브라우저 검증, 2026-07).
+// Qwen3.5: v3.8.1에서 base tokenizer 클래스로 호환 로드되는 공개 ONNX 미러 사용.
 // Llama 4: gated meta-llama/* 대신 Xenova/llama4-tokenizer(토크나이저 전용, ungated) 사용.
-// 토크나이저는 모델보다 느리게 바뀜: o200k_base 는 GPT-4o/o1/o3/GPT-5/GPT-5.6(Sol·Terra·Luna) 가 공유 → 별도 엔진 불필요.
-// Gemma 4·DeepSeek-V4 는 기존 3/V3 과 서브워드 vocab·merges 동일(특수토큰만 추가) → 갱신 불필요, 3/V3 항목 유지.
-// context: 해당 토크나이저가 속한 모델 계열의 대표 컨텍스트 윈도우(토큰). 게이지 표시용 근사값.
+// 최신 모델명만으로 토크나이저 공유를 추정하지 않으며, 익명 브라우저에서 검증된 artifact만 목록에 포함한다.
+// context: 선택한 공개 artifact가 대표하는 구체 모델의 컨텍스트 윈도우(토큰).
 export const MODELS = [
-    { id: 'Xenova/gpt-4o',                        label: 'GPT-4o · GPT-5.6 (o200k)', family: 'BPE · byte-level', context: 128000 },
-    { id: 'onnx-community/Qwen3.5-0.8B-ONNX',      label: 'Qwen3.5',                family: 'BPE · byte-level', context: 262144 },
-    { id: 'Xenova/llama4-tokenizer',              label: 'Llama 4',                family: 'BPE · byte-level', context: 10000000 },
-    { id: 'onnx-community/gemma-3-1b-it-ONNX',     label: 'Gemma 3',                family: 'SentencePiece',    context: 131072 },
-    { id: 'deepseek-ai/DeepSeek-V3',              label: 'DeepSeek-V3',            family: 'BPE · byte-level', context: 131072 },
-    { id: 'Xenova/bert-base-multilingual-cased',  label: 'BERT multilingual',      family: 'WordPiece',        context: 512 },
+    {
+        id: 'Xenova/gpt-4o',
+        revision: '7956d98f2a83b2751a98ea7136fdf7fe6cf54e69',
+        label: 'GPT-4o (o200k)', family: 'BPE · byte-level', context: 128_000,
+    },
+    {
+        id: 'onnx-community/Qwen3.5-0.8B-ONNX',
+        revision: 'c0d619322dad7c4441a8841a53fc59772ddddcc0',
+        label: 'Qwen3.5 0.8B', family: 'BPE · byte-level', context: 262_144,
+    },
+    {
+        id: 'Xenova/llama4-tokenizer',
+        revision: '2cac0ef8980927774181b5fdc77d539b25cde31f',
+        label: 'Llama 4 Scout tokenizer', family: 'BPE · byte-level', context: 10_000_000,
+    },
+    {
+        id: 'onnx-community/gemma-3-1b-it-ONNX',
+        revision: 'a58439f40017d3b99c7d378ff525e54e0ba08ebf',
+        label: 'Gemma 3 1B', family: 'SentencePiece', context: 32_768,
+    },
+    {
+        id: 'deepseek-ai/DeepSeek-V3',
+        revision: 'e815299b0bcbac849fa540c768ef21845365c9eb',
+        label: 'DeepSeek-V3', family: 'BPE · byte-level', context: 131_072,
+    },
+    {
+        id: 'Xenova/bert-base-multilingual-cased',
+        revision: '17016e764a76e30ed904bc251df4510f27b7f23f',
+        label: 'BERT multilingual', family: 'WordPiece', context: 512,
+    },
 ];
 
 const _cache = new Map();
+const _pending = new Map();
 
 // 토크나이저 로드(캐시). onProgress(frac0to1, raw) 콜백 옵션
 export async function loadTokenizer(modelId, onProgress) {
     if (_cache.has(modelId)) return _cache.get(modelId);
-    const tok = await AutoTokenizer.from_pretrained(modelId, {
+    if (_pending.has(modelId)) {
+        const tok = await _pending.get(modelId);
+        if (onProgress) onProgress(1, { status: 'done', progress: 100 });
+        return tok;
+    }
+
+    const model = MODELS.find((entry) => entry.id === modelId);
+    const request = AutoTokenizer.from_pretrained(modelId, {
+        revision: model ? model.revision : 'main',
         progress_callback: onProgress
             ? (p) => {
                   const frac = p && typeof p.progress === 'number' ? p.progress / 100 : null;
                   onProgress(frac, p);
               }
             : undefined,
+    }).then((tok) => {
+        tok.__modelId = modelId;
+        tok.__revision = model ? model.revision : 'main';
+        _cache.set(modelId, tok);
+        return tok;
     });
-    tok.__modelId = modelId;
-    _cache.set(modelId, tok);
-    return tok;
+
+    _pending.set(modelId, request);
+    try {
+        return await request;
+    } finally {
+        _pending.delete(modelId);
+    }
 }
 
 // byte-level / sentencepiece 마커를 가독성 기호로 치환 (표시용)
@@ -50,114 +93,100 @@ export function prettyToken(t) {
         .replace(/▁/g, '␣'); // '▁' sentencepiece space
 }
 
-// ── byte-level(GPT/Llama 등) 토큰을 실제 텍스트로 복원 ──
-// byte-level BPE는 UTF-8 바이트를 인쇄 가능한 유니코드로 매핑한다(GPT-2 방식).
-// 그 역매핑으로 원래 바이트를 복원한 뒤 UTF-8로 디코드해야 한글/이모지가 제대로 보인다.
-let _byteDecoder = null;
-function getByteDecoder() {
-    if (_byteDecoder) return _byteDecoder;
-    const bs = [];
-    for (let i = 33; i <= 126; i++) bs.push(i);   // '!'..'~'
-    for (let i = 161; i <= 172; i++) bs.push(i);  // '¡'..'¬'
-    for (let i = 174; i <= 255; i++) bs.push(i);  // '®'..'ÿ'
-    const cs = bs.slice();
-    let n = 0;
-    for (let b = 0; b < 256; b++) {
-        if (!bs.includes(b)) { bs.push(b); cs.push(256 + n); n++; }
-    }
-    const dec = {};
-    for (let i = 0; i < bs.length; i++) dec[String.fromCharCode(cs[i])] = bs[i];
-    _byteDecoder = dec;
-    return dec;
-}
-
-const _utf8Decoder = new TextDecoder('utf-8', { fatal: false });
-const _utf8Encoder = new TextEncoder();
-
-// byte-level 인코딩 문자열 → 원본 텍스트 (불완전 바이트는 U+FFFD '�')
-export function byteLevelToText(str) {
-    const dec = getByteDecoder();
-    const bytes = [];
-    for (const ch of String(str)) {
-        if (dec[ch] !== undefined) bytes.push(dec[ch]);
-        else for (const b of _utf8Encoder.encode(ch)) bytes.push(b); // 미매핑 문자는 그대로 인코드
-    }
-    return _utf8Decoder.decode(new Uint8Array(bytes));
-}
-
 // 현재 토크나이저가 byte-level 계열인지 (카탈로그 family 기준)
 export function isByteLevel(tok) {
     const m = MODELS.find((x) => x.id === (tok && tok.__modelId));
     return !!(m && /byte-level/i.test(m.family));
 }
 
-// 토큰 raw → 화면 표시 문자열 (byte-level이면 디코드, 공백/개행/탭 가시화)
-export function displaySurface(raw, byteLevel) {
-    let s = byteLevel ? byteLevelToText(raw) : String(raw);
-    s = s
-        .replace(/Ġ/g, '␣')
-        .replace(/Ċ/g, '⏎')
-        .replace(/▁/g, '␣')
-        .replace(/ /g, '␣')
-        .replace(/\n/g, '⏎')
-        .replace(/\t/g, '⇥');
-    return s;
-}
-
 // 특수 토큰 판별 (표시용 점선 테두리 / id 밑줄)
 export function isSpecialToken(t) {
     if (t == null) return false;
     const s = String(t);
-    return /^(<\|.*\|>|\[(CLS|SEP|PAD|MASK|UNK|BOS|EOS)\]|<\/?s>|<unk>|<pad>|<\|endoftext\|>)$/.test(s);
+    return /^(<\|.*\|>|\[(CLS|SEP|PAD|MASK|UNK|BOS|EOS)\]|<\/?s>|<(unk|pad|bos|eos|mask|start_of_turn|end_of_turn)>|<\|endoftext\|>)$/.test(s);
 }
 
 // 실제 토크나이저로 4단계 추출
 export function tokenizeReal(tok, text) {
     // 1. Normalization (string -> string, normalizer 가 null 일 수 있음)
-    let normalized;
-    try {
-        normalized = tok.normalizer ? tok.normalizer.normalize(text) : text;
-    } catch {
-        normalized = text;
+    let normalized = text;
+    if (tok.normalizer) {
+        try {
+            normalized = tok.normalizer.normalize(text);
+        } catch (error) {
+            throw new Error('Tokenizer normalization failed', { cause: error });
+        }
     }
-    if (normalized == null) normalized = text;
+    if (typeof normalized !== 'string') throw new Error('Tokenizer returned invalid normalized text');
 
     // 2. Pre-tokenization (string -> string[]; byte-level 은 공백을 'Ġ' 로 매핑)
-    let preTokens;
-    try {
-        preTokens = tok.pre_tokenizer ? tok.pre_tokenizer.pre_tokenize_text(normalized, {}) : [normalized];
-    } catch {
-        preTokens = [normalized];
+    let preTokens = [normalized];
+    if (tok.pre_tokenizer) {
+        try {
+            preTokens = tok.pre_tokenizer.pre_tokenize_text(normalized, {});
+        } catch (error) {
+            throw new Error('Tokenizer pre-tokenization failed', { cause: error });
+        }
+    }
+    if (!Array.isArray(preTokens) || preTokens.some((value) => typeof value !== 'string')) {
+        throw new Error('Tokenizer returned invalid pre-tokenization output');
     }
 
     // 3. Subword model (string[] -> string[] 서브워드 문자열). 주의: ids 가 아닌 문자열 반환
     let subwords;
     try {
         subwords = tok.model(preTokens);
-    } catch {
-        subwords = preTokens.slice();
+    } catch (error) {
+        throw new Error('Tokenizer subword model failed', { cause: error });
+    }
+    if (!Array.isArray(subwords) || subwords.some((value) => typeof value !== 'string')) {
+        throw new Error('Tokenizer returned invalid subword output');
     }
 
-    // 4. Post-processing: 특수 토큰 포함 최종 ids 와 토큰 문자열
+    // 4. Post-processing: 호출 옵션에 따른 최종 ids 와 토큰 문자열
     let ids;
     try {
         ids = tok.encode(text);
-    } catch {
-        ids = [];
+    } catch (error) {
+        throw new Error('Tokenizer encode failed', { cause: error });
     }
+    if (!ids || typeof ids.length !== 'number') throw new Error('Tokenizer returned invalid token IDs');
+    const idList = Array.from(ids);
     let finalTokens;
     try {
-        finalTokens = tok.model.convert_ids_to_tokens(ids);
-    } catch {
-        finalTokens = ids.map((id) => (tok.model && tok.model.vocab ? tok.model.vocab[id] : String(id)));
+        finalTokens = Array.from(tok.model.convert_ids_to_tokens(ids));
+    } catch (error) {
+        const vocab = tok.model && tok.model.vocab;
+        if (!vocab) throw new Error('Tokenizer token conversion failed', { cause: error });
+        const entries = vocab instanceof Map ? [...vocab.entries()] : Object.entries(vocab);
+        const byId = new Map();
+        entries.forEach(([key, value]) => {
+            if (typeof value === 'number') byId.set(Number(value), String(key));
+            else if (typeof value === 'string' && Number.isFinite(Number(key))) byId.set(Number(key), value);
+        });
+        finalTokens = idList.map((id) => byId.get(Number(id)));
+    }
+    if (finalTokens.length !== idList.length || finalTokens.some((value) => typeof value !== 'string')) {
+        throw new Error('Tokenizer returned invalid final tokens');
     }
 
     const bl = isByteLevel(tok);
-    const preDisplay = preTokens.map((t) => displaySurface(t, bl));
-    const finDisplay = finalTokens.map((t) => displaySurface(t, bl));
-    const pieces = subwords.map((sw) => {
-        const s = displaySurface(sw, bl);
-        return { token: sw, surface: s, len: [...s].length };
+    const rawPreDisplay = displaySurfaces(preTokens, bl);
+    const rawFinDisplay = displaySurfaces(finalTokens, bl);
+    const rawSubDisplay = displaySurfaces(subwords, bl);
+    const preDisplay = labelByteContinuations(preTokens, rawPreDisplay, bl);
+    const finDisplay = labelByteContinuations(finalTokens, rawFinDisplay, bl);
+    const subDisplay = labelByteContinuations(subwords, rawSubDisplay, bl);
+    const pieces = subwords.map((sw, i) => {
+        const surface = rawSubDisplay[i];
+        const display = subDisplay[i];
+        return {
+            token: sw,
+            surface,
+            display,
+            continuation: surface === '' && display !== '',
+            len: [...surface].length,
+        };
     });
 
     return { engine: 'real', modelId: tok.__modelId, normalized, preTokens, subwords, finalTokens, ids, pieces, preDisplay, finDisplay };
@@ -222,7 +251,7 @@ export function tokenizeHeuristic(text) {
     const finDisplay = finalTokens.map((t) => displaySurface(t, false));
     const pieces = subwords.map((sw) => {
         const s = displaySurface(sw, false);
-        return { token: sw, surface: s, len: [...s].length };
+        return { token: sw, surface: s, display: s, continuation: false, len: [...s].length };
     });
 
     return { engine: 'heuristic', modelId: null, normalized, preTokens, subwords, finalTokens, ids, pieces, preDisplay, finDisplay };

@@ -8,13 +8,15 @@ import {
 } from './pipeline.js';
 import { buildCmpSelects, setCmpStatus, renderCompare, ensureCompare, onCmpChange } from './compare.js';
 import { ensureMatrix } from './matrix.js';
-import { openCostModal, closeCostModal, toggleCostSort, setCostSort } from './costModal.js';
+import { openCostModal, closeCostModal, handleCostModalKeydown, setCostSort } from './costModal.js';
 import { buildPresets } from './presets.js';
 import { setupHoverSync } from './hover.js';
 
 // 현재 언어 기준 정적 UI 텍스트 적용
 function applyLang() {
     const L = i18n[state.lang];
+    document.documentElement.lang = state.lang;
+    document.title = L.documentTitle;
     el('mainTitle').textContent = L.mainTitle;
     el('langToggleBtn').textContent = L.toggleBtn;
     el('inputText').placeholder = L.placeholder;
@@ -34,11 +36,28 @@ function applyLang() {
     el('tabPipeline').textContent = L.tabPipeline;
     el('tabCompare').textContent = L.tabCompare;
     el('tabMatrix').textContent = L.tabMatrix;
+    el('matrixTableWrap').setAttribute('aria-label', L.matrixScrollLabel);
+    el('costTableWrap').setAttribute('aria-label', L.costTableScrollLabel);
+    el('viewTabs').setAttribute('aria-label', L.viewsLabel);
     el('costTableBtn').textContent = L.costTableBtn;
     el('costModalTitle').textContent = L.costModalTitle;
     el('sortBtnProvider').textContent = L.sortProvider;
     el('sortBtnAsc').textContent = L.sortAsc;
     el('sortBtnDesc').textContent = L.sortDesc;
+    el('modelSelectLabel').textContent = L.modelSelectLabel;
+    el('inputTextLabel').textContent = L.inputLabel;
+    el('costModelLabel').textContent = L.costModelLabel;
+    el('cmpLabelA').textContent = L.compareModelA;
+    el('cmpLabelB').textContent = L.compareModelB;
+    el('modelSelect').title = L.modelSelectLabel;
+    el('costModelSelect').title = L.costModelLabel;
+    el('cmpSelectA').title = L.compareModelA;
+    el('cmpSelectB').title = L.compareModelB;
+    el('heatmapToggleWrap').title = L.heatmapTitle;
+    el('animToggleWrap').title = L.animTitle;
+    el('costModalClose').title = L.closeLabel;
+    el('costModalClose').setAttribute('aria-label', L.closeLabel);
+    buildCostSelect();
     buildPresets(onInput);
 }
 
@@ -50,11 +69,18 @@ function toggleLang() {
     }
     state.lang = state.lang === 'ko' ? 'en' : 'ko';
     applyLang();
-    setEngineStatus(state.loading ? 'loading' : state.currentTok ? 'real' : 'fallback');
+    const engineKind = state.loading
+        ? 'loading'
+        : state.lastResult
+            ? (state.lastResult.engine === 'real' ? 'real' : 'fallback')
+            : state.currentTok ? 'real' : 'fallback';
+    setEngineStatus(engineKind);
     if (state.currentView === 'compare') {
-        setCmpStatus('A', state.cmpTokA ? 'real' : 'fallback');
-        setCmpStatus('B', state.cmpTokB ? 'real' : 'fallback');
+        setCmpStatus('A', state.cmpLoadingA ? 'loading' : state.cmpTokA ? 'real' : 'fallback');
+        setCmpStatus('B', state.cmpLoadingB ? 'loading' : state.cmpTokB ? 'real' : 'fallback');
         renderCompare();
+    } else if (state.currentView === 'matrix') {
+        ensureMatrix();
     } else if (state.lastResult) {
         render(state.lastResult);
     } else {
@@ -90,19 +116,47 @@ function switchView(name) {
     state.currentView = name;
     ['pipeline', 'compare', 'matrix'].forEach((v) => {
         const node = el(v + 'View');
-        if (node) node.classList.toggle('hidden', v !== name);
+        if (node) {
+            const isHidden = v !== name;
+            node.hidden = isHidden;
+            node.classList.toggle('hidden', isHidden);
+        }
     });
     el('pipelineControls').classList.toggle('hidden', name !== 'pipeline');
-    document.querySelectorAll('.view-tab[data-view]').forEach((b) =>
-        b.classList.toggle('is-active', b.dataset.view === name)
-    );
+    el('inputRow').classList.toggle('hidden', name === 'matrix');
+    el('presetBtns').classList.toggle('hidden', name === 'matrix');
+    document.querySelectorAll('.view-tab[data-view]').forEach((b) => {
+        const active = b.dataset.view === name;
+        b.classList.toggle('is-active', active);
+        b.setAttribute('aria-selected', String(active));
+        b.tabIndex = active ? 0 : -1;
+    });
+    if (name === 'pipeline') {
+        if (state.lastResult) render(state.lastResult);
+        else processText();
+    }
     if (name === 'compare') ensureCompare();
     if (name === 'matrix') ensureMatrix();
 }
 
+function onViewTabKeydown(event) {
+    const keys = ['ArrowLeft', 'ArrowRight', 'Home', 'End'];
+    if (!keys.includes(event.key)) return;
+    const tabs = [...document.querySelectorAll('.view-tab[data-view]')];
+    const current = tabs.indexOf(event.currentTarget);
+    let next = current;
+    if (event.key === 'Home') next = 0;
+    else if (event.key === 'End') next = tabs.length - 1;
+    else if (event.key === 'ArrowLeft') next = (current - 1 + tabs.length) % tabs.length;
+    else if (event.key === 'ArrowRight') next = (current + 1) % tabs.length;
+    event.preventDefault();
+    tabs[next].focus();
+    switchView(tabs[next].dataset.view);
+}
+
 function onInput() {
     if (state.currentView === 'compare') renderCompare();
-    else processText();
+    else if (state.currentView === 'pipeline') processText();
 }
 
 async function init() {
@@ -117,17 +171,17 @@ async function init() {
     el('costModelSelect').addEventListener('change', onCostModelChange);
     el('cmpSelectA').addEventListener('change', () => onCmpChange('A'));
     el('cmpSelectB').addEventListener('change', () => onCmpChange('B'));
-    document.querySelectorAll('.view-tab[data-view]').forEach((b) =>
-        b.addEventListener('click', () => switchView(b.dataset.view))
-    );
+    document.querySelectorAll('.view-tab[data-view]').forEach((b) => {
+        b.addEventListener('click', () => switchView(b.dataset.view));
+        b.addEventListener('keydown', onViewTabKeydown);
+    });
     el('costTableBtn').addEventListener('click', openCostModal);
     el('costModalClose').addEventListener('click', closeCostModal);
     el('costModal').addEventListener('click', (e) => { if (e.target === el('costModal')) closeCostModal(); });
-    el('costTable').addEventListener('click', (e) => { if (e.target.closest('.ct-sort')) toggleCostSort(); });
     document.querySelectorAll('#costSortBtns .sort-btn').forEach((b) =>
         b.addEventListener('click', () => setCostSort(b.dataset.sort))
     );
-    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeCostModal(); });
+    document.addEventListener('keydown', handleCostModalKeydown);
     setupHoverSync();
 
     applyLang();

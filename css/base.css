@@ -38,6 +38,12 @@ html, body {
 .token-badge:hover {
     transform: scale(1.05);
 }
+.token-badge.byte-continuation {
+    background-color: #f3f4f6 !important;
+    border-style: dashed;
+    color: #4b5563;
+    font-size: 0.75rem;
+}
 
 /* 스텝 카드 (직선형) */
 .step-card {
@@ -46,4 +52,81 @@ html, body {
     min-height: 0; /* Flexbox 버그 방지 */
     border: 2px solid #000000;
     overflow: hidden;
+}
+
+/* 좁은 화면·낮은 뷰포트에서는 페이지 스크롤과 적응형 열을 사용 */
+@media (max-width: 1023px), (max-height: 719px) {
+    html,
+    body {
+        height: auto;
+        min-height: 100%;
+        overflow: auto;
+    }
+
+    body {
+        min-height: 100vh;
+    }
+
+    #topBar,
+    #globalControls,
+    #pipelineControls {
+        flex-wrap: wrap;
+    }
+
+    #pipelineView,
+    #compareView,
+    #matrixView {
+        flex: none;
+        min-height: auto;
+    }
+
+    #pipelineView > main {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    #pipelineView > footer {
+        height: auto;
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    #pipelineView > footer > div,
+    .step-card > div:last-child {
+        min-height: 10rem;
+    }
+
+    #compareView > div:first-child {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+@media (max-width: 639px) {
+    body {
+        padding: 0.75rem !important;
+        overflow-x: hidden;
+    }
+
+    #topBar {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    #globalControls,
+    #pipelineControls {
+        justify-content: flex-start;
+        width: 100%;
+    }
+
+    #pipelineView > main {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .modal-overlay {
+        padding: 0.5rem;
+    }
+
+    .modal-head {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
 }
