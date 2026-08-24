@@ -3,7 +3,9 @@ import { validateAnalysisResult } from './analysisContract.js';
 import { measureText } from './unicodeMetrics.js';
 
 export const INSPECTOR_EXPORT_SCHEMA_VERSION = 1;
-export const INSPECTOR_SHARE_SCHEMA_VERSION = 1;
+export const INSPECTOR_SHARE_SCHEMA_VERSION = 2;
+// v1 링크는 P3 이전에 만들어진 것이며 계속 열려야 한다.
+export const SUPPORTED_SHARE_SCHEMA_VERSIONS = Object.freeze([1, 2]);
 
 export const DEFAULT_INPUT_LIMITS = Object.freeze({
     maxCharacters: 100_000,
@@ -40,7 +42,11 @@ const DANGEROUS_OBJECT_KEYS = new Set(['__proto__', 'constructor', 'prototype'])
 const SHARE_STATE_KEYS = new Set([
     'modelId', 'compareModelA', 'compareModelB', 'view', 'lens', 'lang', 'locale',
     'lessonId', 'level', 'options', 'text',
+    // P3: 재현 가능한 수업 링크
+    'corpusId', 'benchmarkColumns', 'benchmarkMetric', 'presentation',
 ]);
+
+const MAX_BENCHMARK_COLUMNS = 4;
 
 function requireString(value, path) {
     if (typeof value !== 'string') {
@@ -602,6 +608,34 @@ function normalizeShareState(state, includeInput) {
             }
         }
     }
+    for (const key of ['corpusId', 'benchmarkMetric']) {
+        if (copy[key] !== undefined) {
+            requireString(copy[key], `state.${key}`);
+            if (copy[key].length === 0 || copy[key].length > 64) {
+                throw new RangeError(`state.${key} must contain 1 to 64 UTF-16 code units`);
+            }
+        }
+    }
+    if (copy.benchmarkColumns !== undefined) {
+        if (!Array.isArray(copy.benchmarkColumns)) {
+            throw new TypeError('state.benchmarkColumns must be an array');
+        }
+        if (copy.benchmarkColumns.length > MAX_BENCHMARK_COLUMNS) {
+            throw new RangeError(`state.benchmarkColumns must not exceed ${MAX_BENCHMARK_COLUMNS} entries`);
+        }
+        copy.benchmarkColumns.forEach((value, index) => {
+            requireString(value, `state.benchmarkColumns[${index}]`);
+            if (value.length === 0 || value.length > 512) {
+                throw new RangeError(`state.benchmarkColumns[${index}] must contain 1 to 512 UTF-16 code units`);
+            }
+        });
+        if (new Set(copy.benchmarkColumns).size !== copy.benchmarkColumns.length) {
+            throw new TypeError('state.benchmarkColumns must not repeat a model');
+        }
+    }
+    if (copy.presentation !== undefined && typeof copy.presentation !== 'boolean') {
+        throw new TypeError('state.presentation must be a boolean');
+    }
     if (copy.options !== undefined) requirePlainObject(copy.options, 'state.options');
     return copy;
 }
@@ -652,7 +686,7 @@ export function decodeShareState(query) {
     if (keys.some((key) => !['schemaVersion', 'type', 'includesInput', 'state'].includes(key))) {
         throw new TypeError('share state contains unknown fields');
     }
-    if (payload.schemaVersion !== INSPECTOR_SHARE_SCHEMA_VERSION) {
+    if (!SUPPORTED_SHARE_SCHEMA_VERSIONS.includes(payload.schemaVersion)) {
         throw new RangeError('unsupported share state version');
     }
     if (payload.type !== SHARE_TYPE) throw new TypeError('invalid share state type');

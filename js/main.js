@@ -20,8 +20,14 @@ import {
 } from './inspectorView.js';
 import { applyLearnLanguage, initLearn, renderLearn } from './learnView.js';
 import { applyRequestLabLanguage, initRequestLab, renderRequestLab } from './requestLabView.js';
+import { applyBenchmarkLanguage, initBenchmark, renderBenchmarkResult } from './benchmarkView.js';
+import { applyPresentationLanguage, initPresentation, refreshPresentation, setPresentation } from './presentationView.js';
+import { BUILTIN_CORPORA } from './corpus.js';
+import { BENCHMARK_METRICS } from './benchmarkDomain.js';
 
-const VIEW_NAMES = new Set(['pipeline', 'compare', 'matrix', 'inspector', 'learn', 'request']);
+const VIEW_NAMES = new Set(['pipeline', 'compare', 'matrix', 'inspector', 'learn', 'request', 'benchmark']);
+const CORPUS_IDS = new Set([...BUILTIN_CORPORA.map((corpus) => corpus.id), 'user']);
+const MODEL_IDS = new Set(MODELS.map((model) => model.id));
 const LENS_NAMES = new Set(['spaces', 'nfc', 'nfd', 'case', 'emoji', 'code-indentation']);
 const LESSON_NAMES = new Set(['token-not-word', 'korean-emoji-utf8', 'same-text-different-tokenizers']);
 
@@ -43,6 +49,17 @@ function restoreSharedState() {
             state.explanationLevel = shared.level;
         }
         if (shared.options !== undefined) state.analysisOptions = normalizeAnalysisOptions(shared.options);
+        if (typeof shared.corpusId === 'string' && CORPUS_IDS.has(shared.corpusId)) {
+            state.benchmarkCorpusId = shared.corpusId;
+        }
+        if (typeof shared.benchmarkMetric === 'string' && BENCHMARK_METRICS.includes(shared.benchmarkMetric)) {
+            state.benchmarkMetric = shared.benchmarkMetric;
+        }
+        if (Array.isArray(shared.benchmarkColumns)) {
+            const columns = shared.benchmarkColumns.filter((id) => MODEL_IDS.has(id));
+            if (columns.length >= 2 && columns.length <= 4) state.benchmarkColumns = columns;
+        }
+        if (typeof shared.presentation === 'boolean') state.presentationOn = shared.presentation;
         if (restored.includesInput && typeof shared.text === 'string') el('inputText').value = shared.text;
     } catch (error) {
         console.warn('Ignored invalid Inspector share state:', error);
@@ -55,6 +72,7 @@ function analyzeActiveView() {
     if (state.currentView === 'inspector') renderInspector(result);
     if (state.currentView === 'learn') renderLearn();
     if (state.currentView === 'request') renderRequestLab();
+    refreshPresentation();
     return { inputStatus, result };
 }
 
@@ -120,6 +138,8 @@ function applyLang() {
     applyInspectorLanguage();
     applyLearnLanguage();
     applyRequestLabLanguage();
+    applyBenchmarkLanguage();
+    applyPresentationLanguage();
     updateInputEditor(state.lang);
     buildCostSelect();
     buildPresets(onInput);
@@ -154,6 +174,8 @@ function toggleLang() {
     } else {
         analyzeActiveView();
     }
+    // 다시 그린 DOM에는 reveal 표시가 없으므로 발표 상태를 복원한다.
+    refreshPresentation();
 }
 
 async function onModelChange() {
@@ -193,8 +215,8 @@ function switchView(name) {
     // Request Lab은 자체 composer를 쓰므로 공용 입력줄과 preset을 숨기지만,
     // artifact 선택은 chat template 능력을 바꾸므로 모델 컨트롤은 남긴다.
     el('pipelineControls').classList.toggle('hidden', !['pipeline', 'inspector', 'learn', 'request'].includes(name));
-    el('inputRow').classList.toggle('hidden', name === 'matrix' || name === 'request');
-    el('presetBtns').classList.toggle('hidden', ['matrix', 'learn', 'request'].includes(name));
+    el('inputRow').classList.toggle('hidden', ['matrix', 'request', 'benchmark'].includes(name));
+    el('presetBtns').classList.toggle('hidden', ['matrix', 'learn', 'request', 'benchmark'].includes(name));
     document.querySelectorAll('.view-tab[data-view]').forEach((b) => {
         const active = b.dataset.view === name;
         b.classList.toggle('is-active', active);
@@ -210,6 +232,8 @@ function switchView(name) {
     if (name === 'inspector') analyzeActiveView();
     if (name === 'learn') { processText(); renderLearn(); }
     if (name === 'request') renderRequestLab();
+    if (name === 'benchmark') renderBenchmarkResult();
+    refreshPresentation();
 }
 
 function onViewTabKeydown(event) {
@@ -232,13 +256,13 @@ function onInput() {
     if (!status.accepted) {
         processText();
         if (state.currentView === 'inspector') renderInspector(null);
-        if (state.currentView === 'learn') renderLearn();
+        if (state.currentView === 'learn') { renderLearn(); refreshPresentation(); }
         return;
     }
     if (state.currentView === 'compare') renderCompare();
     else if (state.currentView === 'pipeline') processText();
     else if (state.currentView === 'inspector') analyzeActiveView();
-    else if (state.currentView === 'learn') { processText(); renderLearn(); }
+    else if (state.currentView === 'learn') { processText(); renderLearn(); refreshPresentation(); }
 }
 
 async function init() {
@@ -270,8 +294,11 @@ async function init() {
     initInspector({ reanalyze: analyzeActiveView });
     initLearn({ openSample: openLessonSample });
     initRequestLab(renderRequestLab);
+    initBenchmark({ onReveal: (total) => refreshPresentation(total) });
+    initPresentation();
 
     applyLang();
+    setPresentation(state.presentationOn);
     syncInspectorControls();
     updateInputEditor(state.lang);
     switchView(state.currentView); // 로드 전 즉시 1차 렌더(휴리스틱)

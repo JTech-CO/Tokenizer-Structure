@@ -16,6 +16,7 @@
     <link rel="stylesheet" href="css/views.css">
     <link rel="stylesheet" href="css/p1.css">
     <link rel="stylesheet" href="css/p2.css">
+    <link rel="stylesheet" href="css/p3.css">
 </head>
 <body class="font-sans p-4 flex flex-col gap-4 box-border">
 
@@ -39,6 +40,7 @@
                         <span id="animLabel">애니메이션</span>
                     </label>
                 </div>
+                <button type="button" id="presentationToggleBtn" class="view-tab" aria-pressed="false">발표 모드</button>
                 <button type="button" id="langToggleBtn" class="text-sm font-bold px-3 py-1 border-2 border-black hover:bg-black hover:text-white transition-colors cursor-pointer">
                     English
                 </button>
@@ -52,6 +54,7 @@
                 <button type="button" role="tab" tabindex="-1" aria-selected="false" aria-controls="inspectorView" class="view-tab" data-view="inspector" id="tabInspector">Inspector</button>
                 <button type="button" role="tab" tabindex="-1" aria-selected="false" aria-controls="learnView" class="view-tab" data-view="learn" id="tabLearn">5분 Learn</button>
                 <button type="button" role="tab" tabindex="-1" aria-selected="false" aria-controls="requestView" class="view-tab" data-view="request" id="tabRequest">Request Lab</button>
+                <button type="button" role="tab" tabindex="-1" aria-selected="false" aria-controls="benchmarkView" class="view-tab" data-view="benchmark" id="tabBenchmark">말뭉치 비교</button>
             </div>
             <button type="button" class="view-tab" id="costTableBtn" aria-haspopup="dialog" aria-controls="costModal" aria-expanded="false">수록 모델 단가표</button>
         </div>
@@ -73,7 +76,7 @@
         <div class="flex items-center gap-1 flex-wrap" id="presetBtns"></div>
     </header>
 
-    <!-- 단일 main 랜드마크: 5개 view tabpanel을 모두 포함한다 -->
+    <!-- 단일 main 랜드마크: 7개 view tabpanel을 모두 포함한다 -->
     <main id="viewContainer" class="flex-1 flex flex-col min-h-0">
 
     <!-- 뷰 컨테이너: 파이프라인 (기본) -->
@@ -355,7 +358,66 @@
         </div>
     </div><!-- /requestView -->
 
+    <!-- P3: 말뭉치 비교와 수업 시나리오 -->
+    <div id="benchmarkView" class="flex-1 flex flex-col gap-4 min-h-0 hidden" role="tabpanel" aria-labelledby="tabBenchmark" hidden>
+        <section class="p1-panel shrink-0" aria-labelledby="benchmarkSetupTitle">
+            <div class="p1-panel-head">
+                <h2 id="benchmarkSetupTitle">말뭉치와 비교 열</h2>
+                <div id="benchmarkSetupNote" class="p1-note"></div>
+            </div>
+            <div class="benchmark-setup-grid">
+                <label class="inspector-option"><span id="labelBenchmarkCorpus">말뭉치</span><select id="benchmarkCorpus" class="cost-select"></select></label>
+                <label class="inspector-option"><span id="labelBenchmarkMetric">지표</span><select id="benchmarkMetric" class="cost-select"></select></label>
+                <label class="inspector-option"><span id="labelBenchmarkLanguages">언어 필터</span><select id="benchmarkLanguages" class="cost-select" multiple size="4"></select></label>
+                <label class="inspector-option"><span id="labelBenchmarkDomains">도메인 필터</span><select id="benchmarkDomains" class="cost-select" multiple size="4"></select></label>
+            </div>
+            <div class="benchmark-columns">
+                <div class="p1-subheading" id="benchmarkColumnsTitle">비교 열 (2~4개)</div>
+                <div id="benchmarkColumnChoices" role="group" aria-labelledby="benchmarkColumnsTitle" class="benchmark-column-choices"></div>
+            </div>
+            <label class="inspector-option benchmark-user-corpus">
+                <span id="labelBenchmarkUserCorpus">사용자 문장 (한 줄에 하나, 선택적 <code>[언어,도메인]</code> 접두사)</span>
+                <textarea id="benchmarkUserCorpus" rows="3" spellcheck="false"></textarea>
+            </label>
+            <div class="benchmark-actions">
+                <button type="button" id="benchmarkRunBtn" class="view-tab">실행</button>
+                <button type="button" id="benchmarkExportJsonBtn" class="view-tab">JSON 저장</button>
+                <button type="button" id="benchmarkExportCsvBtn" class="view-tab">CSV 저장</button>
+                <button type="button" id="benchmarkShareBtn" class="view-tab">수업 링크 복사</button>
+                <span id="benchmarkStatus" class="p1-note" role="status" aria-live="polite"></span>
+            </div>
+        </section>
+
+        <div class="benchmark-layout flex-1 min-h-0">
+            <section class="p1-panel inspector-scroll" aria-labelledby="benchmarkTableTitle">
+                <h2 id="benchmarkTableTitle" class="p1-subheading">표본별 결과</h2>
+                <div id="benchmarkTableWrap" class="benchmark-table-wrap" role="group" tabindex="0" aria-label="말뭉치 비교 표 스크롤 영역">
+                    <table class="matrix-table" id="benchmarkTable"></table>
+                </div>
+                <div id="benchmarkCaveats" class="benchmark-caveats"></div>
+            </section>
+            <!-- 표와 목록만 있어 포커스 가능한 자식이 없으므로 스크롤 영역 자체를 키보드로 잡는다. -->
+            <section class="p1-panel inspector-scroll" aria-labelledby="benchmarkSummaryTitle" tabindex="0">
+                <h2 id="benchmarkSummaryTitle" class="p1-subheading">열별 분포와 순위</h2>
+                <div id="benchmarkSummary" class="benchmark-summary"></div>
+                <div id="benchmarkFailures" class="benchmark-failures"></div>
+            </section>
+        </div>
+    </div><!-- /benchmarkView -->
+
     </main><!-- /viewContainer -->
+
+    <!-- P3: 발표 모드 컨트롤 (발표 모드에서만 표시). aside는 complementary landmark라
+         main 밖에 있어도 내용이 landmark 안에 남는다. -->
+    <aside id="presentationBar" class="presentation-bar" aria-label="발표 모드 컨트롤" hidden>
+        <button type="button" id="presentationPrevBtn" class="view-tab">이전</button>
+        <button type="button" id="presentationNextBtn" class="view-tab">다음</button>
+        <button type="button" id="presentationAllBtn" class="view-tab">전체</button>
+        <button type="button" id="presentationResetBtn" class="view-tab">초기화</button>
+        <span id="presentationCounter" class="presentation-counter" role="status" aria-live="polite"></span>
+        <button type="button" id="presentationNotesBtn" class="view-tab" aria-expanded="false" aria-controls="presentationNotes">발표자 메모</button>
+        <div id="presentationNotes" class="presentation-notes" role="group" tabindex="0" aria-label="발표자 메모" hidden></div>
+    </aside>
 
     <!-- 모달: 수록 모델 단가 환산 -->
     <div id="costModal" class="modal-overlay" aria-hidden="true">

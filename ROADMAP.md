@@ -1,6 +1,6 @@
 # Tokenizer Structure 확장 기획 및 우선순위
 
-> 이 문서는 2026-08-25 기준 **P0·P1·P2 구현 상태와 P3 이후의 추가·확장·구축 후보, 의존관계, 우선순위**를 함께 관리합니다. 검증 근거는 `docs/P0-VALIDATION.md`, `docs/P1-VALIDATION.md`, `docs/P1-USABILITY-PROTOCOL.md`, `docs/P2-VALIDATION.md`에 기록합니다.
+> 이 문서는 2026-08-25 기준 **P0~P3 구현 상태와 P4 이후의 추가·확장·구축 후보, 의존관계, 우선순위**를 함께 관리합니다. 검증 근거는 `docs/P0-VALIDATION.md`, `docs/P1-VALIDATION.md`, `docs/P1-USABILITY-PROTOCOL.md`, `docs/P2-VALIDATION.md`, `docs/P3-VALIDATION.md`에 기록합니다.
 
 ## 1. 한 줄 제품 방향
 
@@ -32,7 +32,8 @@
 - 85개 결정론적 회귀 테스트, actual Chrome P1 통합 smoke, Chromium axe 접근성 0 violations
 - RequestSpec/RequestAnalysisResult v1, chat template 능력 런타임 판정, 정확 합산 세그먼트
 - 컨텍스트 예산·고정 prefix 분리·turn 재입력, 조건 기반 비용 시나리오와 수명주기 경고
-- 140개 결정론적 회귀 테스트
+- Corpus v1·BenchmarkResult v1, 부분 실패 격리, 역순 응답 보호, 발표 모드와 수업 링크
+- 181개 결정론적 회귀 테스트
 
 핵심 공백:
 
@@ -164,14 +165,14 @@ P0는 점수와 무관한 필수 게이트입니다. P1 이후는 사용자 가�
 | P2 | Request Token Lab·chat-template overhead | 매우 높음 | 매우 큼 | 높음 | ✅ 완료 — 6개 artifact에서 능력 판정과 정확 합산 세그먼트 검증 |
 | P2 | 컨텍스트·cache·조건 기반 비용 시나리오 | 매우 높음 | 큼 | 높음 | ✅ 완료 — 단가 없는 과금 요소는 0이 아니라 제외 항목으로 표시 |
 | P2 | 선택적 공식 계수 gateway | 높음 | 큼 | 매우 높음 | ⏳ 미착수 — 계약·화면 자리만 확보, 서버 프록시 또는 로컬 adapter 선행 필요 |
-| P3 | 2~4 artifact 말뭉치 Benchmark | 높음 | 큼 | 중상 | 엔진·Worker가 안정된 뒤 확장 |
-| P3 | 발표 모드·재현 가능한 수업 링크 | 중 | 중 | 낮음 | Learn 결과를 교실·발표로 확장 |
+| P3 | 2~4 artifact 말뭉치 Benchmark | 높음 | 큼 | 중상 | ✅ 완료 — 부분 실패 격리와 비교 가능 부분집합 분리 검증 |
+| P3 | 발표 모드·재현 가능한 수업 링크 | 중 | 중 | 낮음 | ✅ 완료 — 단계별 reveal·발표자 메모·원문 미포함 링크 |
 | P4 | cache 관리·app-shell offline·선택 pin | 중상 | 큼 | 높음 | 운영성 향상, 초기 핵심 가치 뒤에 배치 |
 | P4 | 로컬 custom artifact → public exact-SHA | 높음 | 매우 큼 | 매우 높음 | 보안·라이선스·호환성 게이트 필요 |
 | P4 | embeddable core·CLI·adapter SDK | 중상 | 매우 큼 | 높음 | 재사용 플랫폼으로 확장 |
 | P5 | 소형 BPE/Unigram Builder·학습 애니메이션 | 중 | 매우 큼 | 중상 | 핵심 분석 제품이 안정된 뒤 연구·교육 확장 |
 
-핵심 순서는 **P0 신뢰 기반 → P1 Inspector/Learn → P2 Request Token Lab → P3 Benchmark → P4 Platform → P5 Builder**입니다. 2026-08-25 기준 P2의 로컬 범위까지 완료했고 다음 구현 대상은 P3 corpus Benchmark입니다.
+핵심 순서는 **P0 신뢰 기반 → P1 Inspector/Learn → P2 Request Token Lab → P3 Benchmark → P4 Platform → P5 Builder**입니다. 2026-08-25 기준 P3까지 완료했고 다음 구현 대상은 P4 Platform & Extensibility입니다.
 
 ## 9. 단계별 기획
 
@@ -323,7 +324,9 @@ Cost 범위:
 
 ### Phase 3 — Corpus Benchmark & Teaching
 
-**상태: 다음 구현 대상**
+**상태: ✅ 완료 (2026-08-25)**
+
+구현과 검증 근거: [`docs/P3-VALIDATION.md`](docs/P3-VALIDATION.md)
 
 목표: 단일 예시를 재현 가능한 말뭉치 비교와 수업 시나리오로 확장합니다.
 
@@ -340,13 +343,15 @@ Cost 범위:
 
 완료 조건:
 
-- 부분 실패가 순위·평균·색상에 섞이지 않음
-- 다중 모델 결과가 각각의 단일 pipeline 결과와 일치
-- 모델 전환과 역순 응답에서도 열과 결과가 뒤섞이지 않음
-- 작은 샘플 결과를 언어 전체 우열로 일반화하지 않는 안내가 보고서에 포함
-- 1280×720 발표 화면과 320px 학습 화면에서 핵심 흐름을 완료
+- [x] 부분 실패가 순위·평균·색상에 섞이지 않음
+- [x] 다중 모델 결과가 각각의 단일 pipeline 결과와 일치
+- [x] 모델 전환과 역순 응답에서도 열과 결과가 뒤섞이지 않음
+- [x] 작은 샘플 결과를 언어 전체 우열로 일반화하지 않는 안내가 보고서에 포함
+- [x] 1280×720 발표 화면과 320px 학습 화면에서 핵심 흐름을 완료
 
 ### Phase 4 — Platform & Extensibility
+
+**상태: 다음 구현 대상**
 
 목표: 안정된 분석 계약을 offline, custom artifact, 다른 실행 환경으로 확장합니다.
 
@@ -436,7 +441,7 @@ Cost 범위:
 
 ## 12. 최초 수직 슬라이스
 
-2026-08-25 기준 1~8을 완료했으며 9는 공식 계수 gateway가 선행되어야 합니다.
+2026-08-25 기준 1~8을 완료했으며 9는 공식 계수 gateway가 선행되어야 합니다. 이 슬라이스를 통과해 P3까지 진행했습니다.
 
 Phase 전체를 한 번에 만들지 않고 다음 한 줄 흐름으로 위험을 먼저 줄입니다.
 
@@ -457,8 +462,8 @@ Phase 전체를 한 번에 만들지 않고 다음 한 줄 흐름으로 위험�
 1. **완료:** P0 계약·capability·provenance·offset/v4 결정과 공급망 기반
 2. **기능 구현 완료, 외부 gate 진행 전:** P1 Inspector + Unicode A/B + export/share + 5분 Learn + Worker 기반
 3. **로컬 범위 완료:** P2 Request Token Lab + chat template overhead + context/cost. 공식 계수 gateway만 남음
-4. **다음 구현 우선순위:** P3 corpus Benchmark와 발표 모드
-5. **플랫폼화 이후:** P4 offline/cache, custom artifact, core/CLI/SDK
+4. **완료:** P3 corpus Benchmark와 발표 모드·수업 링크
+5. **다음 구현 우선순위:** P4 offline/cache, custom artifact, core/CLI/SDK
 6. **장기 연구:** P5 tokenizer Builder/Trainer
 
 모델 개수 추가나 정교한 비용 UI부터 시작하지 않습니다. 공통 계약 없이 추가하면 동일한 정확성·부분 실패·출처 문제를 각 화면에서 다시 풀어야 하기 때문입니다.

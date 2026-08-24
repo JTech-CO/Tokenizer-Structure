@@ -64,6 +64,19 @@
 
 측정값과 지원 경계는 [P2 검증 기록](docs/P2-VALIDATION.md)에 있습니다. 선택적 공식 계수 gateway는 계약과 화면 자리만 확보한 상태이며, 브라우저 배포물에는 API 키를 두지 않습니다.
 
+이어서 P3 Corpus Benchmark & Teaching을 완료했습니다.
+
+- 내장 말뭉치 2종과 `[언어,도메인]` 태그를 지원하는 사용자 문장 묶음
+- 고정 revision artifact 2~4개 열 비교, 토큰 수·cp/토큰·byte/토큰·컨텍스트 점유율
+- 평균만이 아니라 중앙값·p50·p95·최소·최대와 열별 실패 수
+- 부분 실패를 평균·순위·색상에서 격리하고, 순위는 모든 성공 열이 함께 성공한 부분집합에서만 계산
+- 모델 전환·역순 응답에서도 열이 섞이지 않는 run 최신성 보호
+- 일반화 금지 안내를 화면·JSON·CSV 보고서에 모두 포함
+- 단계별 reveal·발표자 메모·초기화가 있는 발표 모드와, 원문을 담지 않는 재현 가능한 수업 링크
+- Node 결정론적 회귀 테스트 181개, 7개 view × ko/en × 1280×720·320px axe 접근성 0 violations
+
+측정값과 경계는 [P3 검증 기록](docs/P3-VALIDATION.md)에 있습니다.
+
 ## 3. 기술 스택 (Tech Stack)
 
 - **Frontend**: Vanilla JavaScript ES Modules, HTML5
@@ -108,7 +121,7 @@
    npm test
    ```
 
-   외부 패키지 설치 없이 Node.js 기본 test runner로 140개 테스트를 실행합니다.
+   외부 패키지 설치 없이 Node.js 기본 test runner로 181개 테스트를 실행합니다.
 
 GitHub Pages는 저장소를 `main` / `(root)`로 지정하면 `https://<user>.github.io/<repo>/`에서 build 없이 동작합니다.
 
@@ -125,7 +138,8 @@ tokenizer-structure/
 │   ├── analysis.css
 │   ├── views.css
 │   ├── p1.css                   # Inspector/Learn/editor 반응형 UI
-│   └── p2.css                   # Request Lab 반응형 UI
+│   ├── p2.css                   # Request Lab 반응형 UI
+│   └── p3.css                   # 말뭉치 비교와 발표 모드
 ├── js/
 │   ├── analysisContract.js       # AnalysisRequest/Result v2, encoding, roundtrip, provenance
 │   ├── analysisOptions.js        # UI/adapter/export/share canonical tokenizer options
@@ -142,6 +156,12 @@ tokenizer-structure/
 │   ├── contextBudget.js          # cumulative timeline, truncation, cache prefix
 │   ├── costScenario.js           # tier/lifecycle/scenario cost model
 │   ├── requestLabView.js         # Request Lab UI
+│   ├── corpus.js                 # Corpus v1, built-in and user sample sets
+│   ├── benchmarkDomain.js        # BenchmarkResult v1, distribution, failure isolation
+│   ├── benchmarkRun.js           # run ordering guard over the real adapter
+│   ├── benchmarkView.js          # corpus benchmark UI
+│   ├── presentation.js           # reveal reducer and presenter notes
+│   ├── presentationView.js       # presentation mode UI
 │   ├── workerProtocol.js         # versioned Worker messages + tokenizer LRU
 │   ├── tokenizerWorker.js        # Worker runtime
 │   ├── tokenizerWorkerClient.js  # stale/retry/cancel-aware client
@@ -182,12 +202,18 @@ tokenizer-structure/
 │   ├── chatTemplate.test.js
 │   ├── contextBudget.test.js
 │   ├── costScenario.test.js
-│   └── requestLabStatic.test.js
+│   ├── requestLabStatic.test.js
+│   ├── corpus.test.js
+│   ├── benchmarkDomain.test.js
+│   ├── benchmarkRun.test.js
+│   ├── presentation.test.js
+│   └── benchmarkStatic.test.js
 ├── docs/
 │   ├── P0-VALIDATION.md
 │   ├── P1-VALIDATION.md
 │   ├── P1-USABILITY-PROTOCOL.md
 │   ├── P2-VALIDATION.md
+│   ├── P3-VALIDATION.md
 │   └── adr/0001-p0-contract-runtime-and-offsets.md
 ├── package.json
 ├── ROADMAP.md

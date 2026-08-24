@@ -11,7 +11,7 @@ export const state = {
     animOn: false,                         // 단계 순차 애니메이션
     costModelId: 'gpt-4o',                 // footer 비용 추정 대상 모델(기본 토크나이저와 동일 계열)
     lastResult: null,                      // 마지막 토크나이즈 결과(부분 재렌더용)
-    currentView: 'pipeline',               // pipeline | compare | matrix | inspector | learn | request
+    currentView: 'pipeline',               // pipeline | compare | matrix | inspector | learn | request | benchmark
     analysisOptions: { ...DEFAULT_ANALYSIS_OPTIONS }, // P1 canonical tokenizer options
     inspectorLens: 'nfd',                  // Unicode A/B lens
     learnLessonId: 'token-not-word',       // active five-minute path
@@ -53,4 +53,13 @@ export const state = {
     requestCallsPerDay: 100,               // 일간 호출 수 시나리오
     requestReservedOutput: 1024,           // 출력 여유(비용의 출력 토큰과 공유)
     requestReservedReasoning: 0,           // 추론 여유
+
+    // P3 말뭉치 비교와 발표 모드
+    benchmarkCorpusId: 'language-mix',     // 내장 말뭉치 id 또는 'user'
+    benchmarkMetric: 'tokens',             // tokens | codePointsPerToken | bytesPerToken | contextShare
+    benchmarkLanguages: null,              // null이면 전체
+    benchmarkDomains: null,                // null이면 전체
+    benchmarkColumns: ['Xenova/gpt-4o', 'onnx-community/gemma-3-1b-it-ONNX'],
+    presentationOn: false,                 // 발표 모드
+    presentationReveal: { total: 0, revealed: 0 },
 };

@@ -294,3 +294,57 @@ test('URL share decoder rejects malformed, unversioned, and unsafe state', () =>
     assert.throws(() => decodeShareState(falseConsentClaim), /without including it/);
     assert.throws(() => encodeShareState({ modelId: { nested: true } }), /must be a string/);
 });
+
+test('share state carries P3 classroom fields and still opens version 1 links', () => {
+    const query = encodeShareState({
+        view: 'benchmark',
+        corpusId: 'language-mix',
+        benchmarkColumns: ['Xenova/gpt-4o', 'onnx-community/gemma-3-1b-it-ONNX'],
+        benchmarkMetric: 'tokens',
+        presentation: true,
+        lang: 'ko',
+    });
+    const decoded = decodeShareState(query);
+    assert.equal(decoded.schemaVersion, 2);
+    assert.equal(decoded.includesInput, false);
+    assert.equal(decoded.state.presentation, true);
+    assert.equal(decoded.state.corpusId, 'language-mix');
+    assert.deepEqual(decoded.state.benchmarkColumns, ['Xenova/gpt-4o', 'onnx-community/gemma-3-1b-it-ONNX']);
+
+    // P3 이전에 만든 v1 링크는 그대로 열려야 한다.
+    const legacy = new URLSearchParams({
+        inspector: JSON.stringify({
+            schemaVersion: 1,
+            type: 'tokenizer-inspector-share',
+            includesInput: false,
+            state: { view: 'inspector', lens: 'nfd', lang: 'en' },
+        }),
+    }).toString();
+    const migrated = decodeShareState(legacy);
+    assert.equal(migrated.state.view, 'inspector');
+    assert.equal(migrated.state.presentation, undefined);
+});
+
+test('share state rejects malformed benchmark column lists', () => {
+    assert.throws(() => encodeShareState({ benchmarkColumns: 'a,b' }), /must be an array/);
+    assert.throws(() => encodeShareState({ benchmarkColumns: ['a', 'a'] }), /must not repeat/);
+    assert.throws(() => encodeShareState({ benchmarkColumns: ['a', 'b', 'c', 'd', 'e'] }), /exceed 4/);
+    assert.throws(() => encodeShareState({ benchmarkColumns: [1] }), /must be a string/);
+    assert.throws(() => encodeShareState({ presentation: 'yes' }), /must be a boolean/);
+    assert.throws(() => decodeShareState(new URLSearchParams({
+        inspector: JSON.stringify({
+            schemaVersion: 3, type: 'tokenizer-inspector-share', includesInput: false, state: {},
+        }),
+    }).toString()), /unsupported share state version/);
+});
+
+test('classroom links exclude the raw input unless it is explicitly included', () => {
+    const shared = { view: 'benchmark', corpusId: 'domain-mix', presentation: true, text: 'private text' };
+    assert.equal(decodeShareState(encodeShareState(shared)).includesInput, false);
+    assert.ok(!encodeShareState(shared).includes('private'));
+
+    const withInput = decodeShareState(encodeShareState(shared, { includeInput: true }));
+    assert.equal(withInput.includesInput, true);
+    assert.equal(withInput.state.text, 'private text');
+    assert.equal(withInput.state.presentation, true);
+});

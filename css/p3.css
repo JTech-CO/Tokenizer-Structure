@@ -1,0 +1,276 @@
+/* P3 말뭉치 비교와 발표 모드 */
+
+#benchmarkView {
+    overflow: auto;
+}
+
+.benchmark-setup-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.7rem;
+    padding: 0.8rem 0.8rem 0;
+}
+
+.benchmark-setup-grid select[multiple] {
+    min-height: 5rem;
+}
+
+.benchmark-columns {
+    padding: 0.7rem 0.8rem 0;
+}
+
+.benchmark-column-choices {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem 0.8rem;
+    margin-top: 0.35rem;
+}
+
+.benchmark-column-choice {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+}
+
+.benchmark-column-choice input:disabled + span {
+    color: #6b7280;
+}
+
+.benchmark-user-corpus {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding: 0.7rem 0.8rem 0;
+    font-size: 0.72rem;
+    font-weight: 700;
+}
+
+.benchmark-user-corpus textarea {
+    box-sizing: border-box;
+    width: 100%;
+    border: 2px solid #000000;
+    border-radius: 0;
+    background: #ffffff;
+    color: #000000;
+    padding: 0.4rem 0.5rem;
+    resize: vertical;
+    font: 400 0.7rem/1.5 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.benchmark-user-corpus textarea[aria-invalid="true"] {
+    background: #fee2e2;
+}
+
+.benchmark-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    padding: 0.7rem 0.8rem;
+}
+
+/* 상태 문구는 옵션 JSON까지 담아 길어지므로 줄바꿈으로 흘려보낸다. */
+#benchmarkStatus {
+    flex-basis: 100%;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+#benchmarkStatus[data-kind="error"] {
+    color: #991b1b;
+    font-weight: 700;
+}
+
+.benchmark-layout {
+    display: grid;
+    grid-template-columns: minmax(24rem, 1.5fr) minmax(18rem, 1fr);
+    gap: 1rem;
+    min-height: 0;
+}
+
+.benchmark-table-wrap {
+    overflow: auto;
+    border: 2px solid #000000;
+    max-height: 26rem;
+}
+
+#benchmarkTable td.benchmark-failed,
+#benchmarkTable th.benchmark-failed {
+    background: repeating-linear-gradient(45deg, #ffffff, #ffffff 4px, #fecaca 4px, #fecaca 8px);
+    color: #991b1b;
+    font-weight: 700;
+}
+
+#benchmarkTable td.benchmark-cell {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+#benchmarkTable th.benchmark-sample {
+    text-align: left;
+    white-space: nowrap;
+}
+
+.benchmark-tag {
+    display: inline-block;
+    margin-left: 0.3rem;
+    border: 1px solid #000000;
+    padding: 0 0.25rem;
+    font-size: 0.58rem;
+    font-weight: 700;
+    background: #f3f4f6;
+}
+
+.benchmark-caveats,
+.benchmark-failures {
+    margin-top: 0.7rem;
+    font-size: 0.66rem;
+    line-height: 1.45;
+}
+
+.benchmark-caveats ul,
+.benchmark-failures ul {
+    margin: 0.3rem 0 0;
+    padding-left: 1.1rem;
+}
+
+.benchmark-summary table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.65rem;
+}
+
+.benchmark-summary th,
+.benchmark-summary td {
+    border: 1px solid #000000;
+    padding: 0.25rem 0.35rem;
+    text-align: right;
+    vertical-align: top;
+}
+
+.benchmark-summary th:first-child,
+.benchmark-summary td:first-child {
+    text-align: left;
+}
+
+.benchmark-summary thead th {
+    background: #f3f4f6;
+}
+
+.benchmark-summary tr[data-status="failed"] td {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.benchmark-rank {
+    margin-top: 0.6rem;
+    font-size: 0.66rem;
+    line-height: 1.5;
+}
+
+.benchmark-rank ol {
+    margin: 0.3rem 0 0;
+    padding-left: 1.3rem;
+}
+
+/* ── 발표 모드 ─────────────────────────────────────────────────────────── */
+
+.presentation-bar {
+    position: sticky;
+    bottom: 0;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    padding: 0.5rem 0.6rem;
+    border: 2px solid #000000;
+    background: #ffffff;
+}
+
+.presentation-counter {
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+.presentation-notes {
+    flex-basis: 100%;
+    max-height: 12rem;
+    overflow: auto;
+    border-top: 2px solid #000000;
+    padding-top: 0.4rem;
+    font-size: 0.8rem;
+    line-height: 1.5;
+}
+
+.presentation-notes ul {
+    margin: 0;
+    padding-left: 1.2rem;
+}
+
+.presentation-notes .presentation-source {
+    display: block;
+    margin-bottom: 0.35rem;
+    font-weight: 700;
+}
+
+/* reveal 되지 않은 항목은 자리만 남기고 내용을 감춘다. */
+body.presentation [data-reveal="hidden"] {
+    visibility: hidden;
+}
+
+body.presentation {
+    font-size: 1.15rem;
+}
+
+body.presentation .p1-subheading,
+body.presentation .p1-panel-head h2 {
+    font-size: 1.05rem;
+}
+
+body.presentation .benchmark-summary table,
+body.presentation #benchmarkTable,
+body.presentation .benchmark-caveats,
+body.presentation .benchmark-failures,
+body.presentation .benchmark-rank {
+    font-size: 0.9rem;
+}
+
+body.presentation .lesson-step,
+body.presentation #lessonContent {
+    font-size: 1rem;
+}
+
+body.presentation .benchmark-table-wrap {
+    max-height: none;
+}
+
+@media (max-width: 1100px) {
+    .benchmark-setup-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .benchmark-layout {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+@media (max-width: 639px) {
+    .benchmark-setup-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .benchmark-table-wrap {
+        max-height: 20rem;
+    }
+
+    .presentation-bar {
+        padding: 0.4rem;
+    }
+
+    body.presentation {
+        font-size: 1rem;
+    }
+}
