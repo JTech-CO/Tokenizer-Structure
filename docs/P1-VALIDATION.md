@@ -135,7 +135,7 @@ GitHub Pages 빌드 `f03b123` 기준 `https://jtech-co.github.io/Tokenizer-Struc
 ## 4. 남은 릴리스 게이트
 
 - 목표 사용자 대상 5분 경로 사용성 검증: 80% 완료, 4문항 중 3문항 정답 80% 기준은 아직 실제 사용자 표본으로 측정하지 않았습니다. 측정 방법은 [`P1-USABILITY-PROTOCOL.md`](P1-USABILITY-PROTOCOL.md)로 고정했으며 프로토콜 확정은 게이트 통과가 아닙니다.
-- Firefox/WebKit desktop·320px 검증은 아직 남아 있습니다. axe 자동 접근성 검증은 Chromium 기준으로 완료했습니다(위 3절).
+- Firefox/WebKit desktop·320px 검증은 2026-08-25에 완료했습니다. Chromium 151·Firefox 153·WebKit 26.5에서 axe violations 0건이며 결과는 [`CROSS-BROWSER-VALIDATION.md`](CROSS-BROWSER-VALIDATION.md)에 있습니다.
 - GitHub Pages 배포 URL smoke 검증은 `f03b123` 기준으로 완료했습니다. 이번 접근성 수정 이후 다시 확인해야 합니다.
 - 긴 입력을 포함한 UI 전체의 Worker controller 이전, 실제 progress/retry UX, 브라우저별 메모리 budget은 후속 성능 gate입니다.
 

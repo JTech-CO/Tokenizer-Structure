@@ -97,9 +97,19 @@
 - 같은 말뭉치는 항상 같은 merge 순서(동점은 사전순 확정) — 단어 순서를 바꿔도 결과 동일
 - 상한(말뭉치 5,000 code points·단어 400종·merge 200회)을 넘으면 자르지 않고 사유와 함께 거부
 - 실행 전 규모 미리보기와 실행 후 실측 시간을 함께 표시하며 "실시간 학습"으로 약속하지 않음
-- Node 결정론적 회귀 테스트 250개, 9개 view × ko/en × 1280×800·320px axe 접근성 0 violations
+- Node 결정론적 회귀 테스트 254개, 9개 view × ko/en × 1280×800·320px axe 접근성 0 violations
 
 측정값은 [P5 검증 기록](docs/P5-VALIDATION.md), lesson·artifact·adapter 추가 방법은 [확장 가이드](docs/EXTENDING.md)에 있습니다.
+
+2026-08-25에는 Chromium 151 · Firefox 153 · WebKit 26.5 교차 브라우저 검증을 완료했습니다.
+
+- 세 엔진이 같은 입력에서 같은 토큰 수를 냅니다 (파이프라인 24, 비교 24↔19, 벤치마크 16/16, offline 6)
+- 9개 view × 데스크톱·320px·영어에서 axe violations 0건, console/page error 0건
+- Service Worker와 offline pin이 세 엔진에서 동일하게 동작 (네트워크 차단 상태에서 시도 0회로 cache 로드)
+- WebKit만 `navigator.storage.estimate`를 노출하지 않으며, 화면은 0이 아니라 "브라우저가 알려주지 않음"으로 표시
+- Playwright는 저장소가 아니라 외부에 설치해 실행하므로 의존성은 여전히 0
+
+결과와 한계는 [교차 브라우저 검증 기록](docs/CROSS-BROWSER-VALIDATION.md), 재현 절차는 [`tools/cross-browser/`](tools/cross-browser/)에 있습니다.
 
 ## 3. 기술 스택 (Tech Stack)
 
@@ -145,7 +155,7 @@
    npm test
    ```
 
-   외부 패키지 설치 없이 Node.js 기본 test runner로 250개 테스트를 실행합니다.
+   외부 패키지 설치 없이 Node.js 기본 test runner로 254개 테스트를 실행합니다.
 
 GitHub Pages는 저장소를 `main` / `(root)`로 지정하면 `https://<user>.github.io/<repo>/`에서 build 없이 동작합니다.
 
@@ -156,6 +166,8 @@ tokenizer-structure/
 ├── index.html                    # GitHub Pages용 root redirect + strict CSP
 ├── llm_tokenizer_simulator.html  # main UI + CSP
 ├── sw.js                         # app shell service worker (artifacts excluded)
+├── tools/
+│   └── cross-browser/            # Playwright 검증 스크립트 (저장소 의존성 아님)
 ├── css/
 │   ├── utilities.css             # local reset/utility CSS
 │   ├── base.css
@@ -257,6 +269,7 @@ tokenizer-structure/
 │   ├── P4-VALIDATION.md
 │   ├── P5-VALIDATION.md
 │   ├── EXTENDING.md              # lesson·artifact·adapter 추가 가이드
+│   ├── CROSS-BROWSER-VALIDATION.md
 │   ├── adr/0001-p0-contract-runtime-and-offsets.md
 │   └── adr/0002-embeddable-core-cli-and-adapter-sdk.md
 ├── package.json

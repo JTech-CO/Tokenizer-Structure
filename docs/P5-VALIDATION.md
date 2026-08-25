@@ -131,8 +131,8 @@ merge를 늘려도 조각 수는 **줄어들기만 하고 늘지 않으며**, �
 
 ```text
 npm test
-tests 250
-pass 250
+tests 254
+pass 254
 fail 0
 ```
 
@@ -182,7 +182,7 @@ P5를 배포한 직후 GitHub Pages에서 **9개 탭은 보이는데 Builder 화
 
 - Unigram replay(별도 연구)
 - BPE 학습을 다루는 5분 Learn 경로
-- P1부터 이어지는 Firefox/WebKit 검증과 목표 사용자 사용성 측정
+- 목표 사용자 사용성 측정 (Firefox/WebKit 데스크톱 검증은 2026-08-25 완료)
 - P2의 선택적 공식 계수 gateway
 - P4의 public exact-SHA artifact 추가 경로
 

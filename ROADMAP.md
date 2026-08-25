@@ -1,6 +1,6 @@
 # Tokenizer Structure 확장 기획 및 우선순위
 
-> 이 문서는 2026-08-25 기준 **P0~P5 구현 상태와 남은 게이트**를 함께 관리합니다. 검증 근거는 `docs/P0-VALIDATION.md`부터 `docs/P5-VALIDATION.md`까지의 단계별 기록과 `docs/P1-USABILITY-PROTOCOL.md`, `docs/EXTENDING.md`에 있습니다.
+> 이 문서는 2026-08-25 기준 **P0~P5 구현 상태와 남은 게이트**를 함께 관리합니다. 검증 근거는 `docs/P0-VALIDATION.md`부터 `docs/P5-VALIDATION.md`까지의 단계별 기록과 `docs/CROSS-BROWSER-VALIDATION.md`, `docs/P1-USABILITY-PROTOCOL.md`, `docs/EXTENDING.md`에 있습니다.
 
 ## 1. 한 줄 제품 방향
 
@@ -36,14 +36,14 @@
 - cache manifest v1과 런타임 artifact cache 채택, app-shell Service Worker, 명시적 offline pin
 - 세션 한정 custom artifact 업로드와 remote-code 차단, 운영 화면
 - 결정론적 소형 BPE 학습·merge replay와 확장 기여 가이드
-- 250개 결정론적 회귀 테스트
+- 254개 결정론적 회귀 테스트와 Chromium·Firefox·WebKit 교차 검증
 
 핵심 공백:
 
 - v3 공개 JS 계약에서 exact original/normalized offset, sequence ID, word ID가 unavailable이며 Inspector는 이를 추정하지 않고 표시함
 - 세 개의 Learn 경로는 구현됐지만 목표 사용자 80% 사용성 기준을 실제 표본으로 검증하지 않음 (프로토콜만 확정)
 - Worker 기반은 실행 가능하지만 기존 pipeline UI 전체의 비동기 controller 이전과 성능 budget은 남음
-- Firefox/WebKit 검증이 남음 (axe 자동 검증은 Chromium 기준 완료)
+- 실기기 Safari(macOS/iOS)와 모바일 Firefox는 미검증 (데스크톱 엔진 3종은 Chromium 151·Firefox 153·WebKit 26.5로 완료)
 - 공식 계수 gateway가 없어 provider preflight·actual usage 자리는 값 없이 표시만 되고, cached/batch/priority 단가와 tool 과금 데이터가 카탈로그에 없음
 
 ## 3. 대상 사용자와 제품 모드
@@ -480,7 +480,7 @@ Phase 전체를 한 번에 만들지 않고 다음 한 줄 흐름으로 위험�
 남은 것은 구현이 아니라 외부 게이트입니다.
 
 - 목표 사용자 80% 사용성 측정 ([측정 프로토콜](docs/P1-USABILITY-PROTOCOL.md), 실제 표본 필요)
-- Firefox/WebKit desktop·320px 검증 (axe는 Chromium 기준 완료)
+- ~~Firefox/WebKit desktop·320px 검증~~ ✅ 2026-08-25 완료 ([기록](docs/CROSS-BROWSER-VALIDATION.md)). 남은 것은 실기기 Safari와 모바일 Firefox
 - P2 선택적 공식 계수 gateway (서버 프록시 또는 로컬 self-host adapter 선행)
 - P4 public exact-SHA artifact 추가 경로
 - P5 Unigram replay와 BPE를 다루는 5분 Learn 경로
